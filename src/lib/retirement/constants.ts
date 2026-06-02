@@ -1,4 +1,5 @@
 import { RetirementInputs } from './types';
+import { DEFAULT_LOCATION_ID } from './data/locations';
 
 export const DEFAULTS: RetirementInputs = {
   currentAge: 35,
@@ -12,12 +13,16 @@ export const DEFAULTS: RetirementInputs = {
   retirementAnnualExpenses: 48000,  // slightly lower — common to spend less in retirement
   householdType: 'single',
   spouseAge: 33,
+  spouseRetirementAge: 63,
+  spouseCurrentSavings: 75000,
   spouseMonthlyContribution: 1500,
   survivorBenefitRate: 0.67,
   numChildren: 2,
   childAnnualExpense: 15000,
   educationCostPerChild: 100000,
   childExpenseYears: 18,
+  currentLocationId: DEFAULT_LOCATION_ID,
+  retirementLocationId: DEFAULT_LOCATION_ID,
 };
 
 export const FIRE_MULTIPLIERS = {

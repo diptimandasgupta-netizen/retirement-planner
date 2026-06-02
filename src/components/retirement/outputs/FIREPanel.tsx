@@ -1,7 +1,8 @@
 'use client';
-import { Zap, Flame, Star } from 'lucide-react';
+import { Zap, Flame, Star, MapPin, ArrowRight } from 'lucide-react';
 import { useRetirementStore } from '@/store/retirementStore';
 import { USDM } from '@/lib/retirement/constants';
+import { getLocation, relativeLocationFactor } from '@/lib/retirement/data/locations';
 
 export function FIREPanel() {
   const results = useRetirementStore(s => s.results);
@@ -9,6 +10,12 @@ export function FIREPanel() {
 
   if (!results) return null;
   const { fire } = results;
+
+  const currentLoc    = getLocation(inputs.currentLocationId);
+  const retirementLoc = getLocation(inputs.retirementLocationId);
+  const locFactor     = relativeLocationFactor(currentLoc, retirementLoc);
+  const sameLocation  = inputs.currentLocationId === inputs.retirementLocationId;
+  const locImpactPct  = Math.round((locFactor - 1) * 100);
 
   const tiers = [
     {
@@ -48,11 +55,36 @@ export function FIREPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-slate-50 rounded-xl p-3 text-sm">
-        <p className="text-slate-600">
+      <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+        <p className="text-sm text-slate-600">
           Based on <span className="font-semibold">${fire.adjustedAnnualExpenses.toLocaleString()}/yr</span> adjusted expenses
           {inputs.householdType !== 'single' && ` (${inputs.householdType} household)`}.
         </p>
+
+        {/* Location context */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+          <MapPin size={11} className="text-slate-400 shrink-0" />
+          <span className="font-medium text-slate-700">{currentLoc.name}</span>
+          <ArrowRight size={10} className="text-slate-300 shrink-0" />
+          <span className="font-medium text-slate-700">{retirementLoc.name}</span>
+          {!sameLocation && (
+            <span className={`ml-auto font-bold px-2 py-0.5 rounded-full text-xs ${
+              locFactor < 0.9 ? 'bg-green-100 text-green-700' :
+              locFactor > 1.1 ? 'bg-red-100 text-red-700' :
+              'bg-slate-100 text-slate-500'
+            }`}>
+              ×{locFactor.toFixed(2)}
+              {locImpactPct !== 0 && <span className="ml-1 font-normal">({locImpactPct > 0 ? '+' : ''}{locImpactPct}%)</span>}
+            </span>
+          )}
+        </div>
+        {!sameLocation && (
+          <p className="text-xs text-slate-400">
+            {locImpactPct < 0
+              ? `Your FIRE numbers are ${Math.abs(locImpactPct)}% lower because ${retirementLoc.name} is cheaper than ${currentLoc.name}.`
+              : `Your FIRE numbers are ${locImpactPct}% higher because ${retirementLoc.name} is more expensive than ${currentLoc.name}.`}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3">

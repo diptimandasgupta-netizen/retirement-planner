@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RetireSmart — Retirement Planning Tool",
+  title: "FireSmart — Retirement Planning Tool",
   description: "Interactive retirement planner with FIRE calculations, Monte Carlo simulation, and household planning",
 };
 

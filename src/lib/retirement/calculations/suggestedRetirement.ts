@@ -1,0 +1,227 @@
+import { RetirementInputs } from '../types';
+import { HOUSEHOLD_EXPENSE_MULTIPLIER, FIRE_MULTIPLIERS } from '../constants';
+import { getLocation, relativeLocationFactor } from '../data/locations';
+
+export interface RetirementScenario {
+  tier: 'lean' | 'regular' | 'fat';
+  label: string;
+  swrRate: number;
+  multiplier: number;
+  suggestedAge: number | null;       // earliest age where portfolio survives to lifeExpectancy
+  portfolioAtSuggestedAge: number;
+  corpusNeededAtSuggestedAge: number;
+  yearsVsTarget: number;             // negative = earlier, positive = later than target
+  alreadyPossible: boolean;          // portfolio already exceeds corpus at current age
+}
+
+export interface SuggestedRetirementResult {
+  scenarios: RetirementScenario[];
+  earliestAnyTier: number | null;
+  constraintDriver: 'savings' | 'expenses' | 'balanced';
+  monthlyInvestmentToHitTarget: number;
+  expenseReductionToHitTarget: number;
+  projectedSavingsRateNeeded: number;
+  locationFactor: number;                 // relative COL × tax factor applied
+  currentLocationName: string;
+  retirementLocationName: string;
+  locationImpactPct: number;              // % change in expenses due to location move
+}
+
+/** Simulate the portfolio from currentAge to lifeExpectancy with a given retirement age */
+function simulatePortfolio(inputs: RetirementInputs, testRetirementAge: number): {
+  portfolioAtRetirement: number;
+  survivesToEnd: boolean;
+  depletionAge: number | null;
+} {
+  const {
+    currentAge, lifeExpectancy, currentSavings, expectedReturnRate: r, inflationRate: π,
+    retirementAnnualExpenses, monthlyContribution, spouseMonthlyContribution,
+    spouseAge, spouseRetirementAge, spouseCurrentSavings,
+    householdType, numChildren, survivorBenefitRate,
+    currentLocationId, retirementLocationId,
+  } = inputs;
+
+  const isCouple = householdType === 'spouse' || householdType === 'family';
+  const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
+  const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
+
+  let portfolio = currentSavings + (isCouple ? spouseCurrentSavings : 0);
+  let portfolioAtRetirement = 0;
+  let depletionAge: number | null = null;
+
+  for (let age = currentAge; age <= lifeExpectancy; age++) {
+    const t = age - currentAge;
+    const spouseCurrentAge = spouseAge + t;
+    const primaryRetired = age >= testRetirementAge;
+    const spouseRetired = !isCouple || spouseCurrentAge >= spouseRetirementAge;
+
+    const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
+    const spouseContrib  = (isCouple && !spouseRetired) ? spouseMonthlyContribution * 12 : 0;
+
+    if (!primaryRetired) {
+      portfolio = portfolio * (1 + r) + primaryContrib + spouseContrib;
+    } else {
+      if (age === testRetirementAge) portfolioAtRetirement = portfolio;
+      const yearsRetired = age - testRetirementAge;
+      let baseExpenses = retirementAnnualExpenses * expMultiplier * locFactor;
+      if (isCouple && !spouseRetired) baseExpenses *= 0.6;
+      if (isCouple && age > Math.max(currentAge, spouseAge) + 55) baseExpenses *= survivorBenefitRate;
+      const withdrawal = baseExpenses * (1 + π) ** yearsRetired;
+      portfolio = portfolio * (1 + r) + spouseContrib - withdrawal;
+      if (portfolio < 0 && depletionAge === null) depletionAge = age;
+      portfolio = Math.max(0, portfolio);
+    }
+  }
+
+  return {
+    portfolioAtRetirement,
+    survivesToEnd: depletionAge === null,
+    depletionAge,
+  };
+}
+
+/** Find the earliest retirement age (starting from minAge) at which the portfolio survives */
+function findEarliestRetirementAge(inputs: RetirementInputs, minAge: number): {
+  age: number | null;
+  portfolioAtAge: number;
+  corpusNeeded: number;
+} {
+  const { currentAge, retirementAnnualExpenses, inflationRate, householdType, numChildren, currentLocationId, retirementLocationId } = inputs;
+  const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
+  const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
+
+  for (let testAge = minAge; testAge <= 80; testAge++) {
+    const result = simulatePortfolio(inputs, testAge);
+    if (result.survivesToEnd) {
+      const yearsToRetirement = testAge - currentAge;
+      const expAtRetirement = retirementAnnualExpenses * expMultiplier * locFactor * (1 + inflationRate) ** yearsToRetirement;
+      const corpusNeeded = expAtRetirement / 0.04;
+      return { age: testAge, portfolioAtAge: result.portfolioAtRetirement, corpusNeeded };
+    }
+  }
+  return { age: null, portfolioAtAge: 0, corpusNeeded: 0 };
+}
+
+/** Binary-search the monthly contribution needed to retire at a specific age */
+function findContributionForAge(inputs: RetirementInputs, targetAge: number): number {
+  let lo = 0, hi = 50000;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const result = simulatePortfolio({ ...inputs, monthlyContribution: mid }, targetAge);
+    if (result.survivesToEnd) hi = mid; else lo = mid;
+  }
+  return Math.max(0, Math.round(hi - inputs.monthlyContribution));
+}
+
+/** Binary-search the retirement expense reduction needed to retire at a specific age */
+function findExpenseReductionForAge(inputs: RetirementInputs, targetAge: number): number {
+  const current = inputs.retirementAnnualExpenses / 12;
+  let lo = 0, hi = current;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const testMonthly = current - mid;
+    const result = simulatePortfolio(
+      { ...inputs, retirementAnnualExpenses: testMonthly * 12 },
+      targetAge
+    );
+    if (result.survivesToEnd) hi = mid; else lo = mid;
+  }
+  return Math.max(0, Math.round(lo));
+}
+
+export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedRetirementResult {
+  const { currentAge, retirementAge, retirementAnnualExpenses, inflationRate, householdType, numChildren, monthlyContribution, spouseMonthlyContribution, currentLocationId, retirementLocationId } = inputs;
+  const minSearchAge = Math.max(currentAge + 1, 35);
+  const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
+
+  const tiers: Array<{ tier: 'lean' | 'regular' | 'fat'; label: string; swrRate: number; multiplier: number; expenseScale: number }> = [
+    { tier: 'lean',    label: 'Lean FIRE',    swrRate: 0.05, multiplier: FIRE_MULTIPLIERS.lean,    expenseScale: 0.80 },
+    { tier: 'regular', label: 'Regular FIRE', swrRate: 0.04, multiplier: FIRE_MULTIPLIERS.regular, expenseScale: 1.00 },
+    { tier: 'fat',     label: 'Fat FIRE',     swrRate: 0.03, multiplier: FIRE_MULTIPLIERS.fat,     expenseScale: 1.25 },
+  ];
+
+  const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
+
+  const scenarios: RetirementScenario[] = tiers.map(({ tier, label, swrRate, multiplier, expenseScale }) => {
+    const scaledInputs: RetirementInputs = {
+      ...inputs,
+      retirementAnnualExpenses: retirementAnnualExpenses * expenseScale,
+    };
+
+    const found = findEarliestRetirementAge(scaledInputs, minSearchAge);
+    const alreadyPossible = found.age !== null && found.age <= currentAge;
+
+    // Corpus needed at user's target retirement age — apply locFactor here too
+    const yearsToTarget = retirementAge - currentAge;
+    const expAtTarget = retirementAnnualExpenses * expenseScale * expMultiplier * locFactor * (1 + inflationRate) ** yearsToTarget;
+    const corpusAtTarget = expAtTarget / swrRate;
+
+    return {
+      tier,
+      label,
+      swrRate,
+      multiplier,
+      suggestedAge: found.age,
+      portfolioAtSuggestedAge: found.portfolioAtAge,
+      corpusNeededAtSuggestedAge: found.corpusNeeded,
+      yearsVsTarget: found.age !== null ? found.age - retirementAge : 0,
+      alreadyPossible,
+    };
+  });
+
+  // Constraint driver: compare income-side vs expense-side sensitivity
+  const baseAge = scenarios.find(s => s.tier === 'regular')?.suggestedAge ?? retirementAge;
+  const highIncomeResult = findEarliestRetirementAge(
+    { ...inputs, monthlyContribution: inputs.monthlyContribution * 1.5 },
+    minSearchAge
+  );
+  const lowExpenseResult = findEarliestRetirementAge(
+    { ...inputs, retirementAnnualExpenses: inputs.retirementAnnualExpenses * 0.8 },
+    minSearchAge
+  );
+
+  const incomeImprovement  = baseAge ? baseAge - (highIncomeResult.age ?? baseAge) : 0;
+  const expenseImprovement = baseAge ? baseAge - (lowExpenseResult.age ?? baseAge) : 0;
+
+  let constraintDriver: 'savings' | 'expenses' | 'balanced' = 'balanced';
+  if (incomeImprovement > expenseImprovement + 2) constraintDriver = 'savings';
+  else if (expenseImprovement > incomeImprovement + 2) constraintDriver = 'expenses';
+
+  // How much extra monthly investment needed to hit user's target
+  const regularResult = simulatePortfolio(inputs, retirementAge);
+  const monthlyInvestmentToHitTarget = regularResult.survivesToEnd
+    ? 0
+    : findContributionForAge(inputs, retirementAge);
+
+  const expenseReductionToHitTarget = regularResult.survivesToEnd
+    ? 0
+    : findExpenseReductionForAge(inputs, retirementAge);
+
+  // Savings rate needed
+  const totalMonthlyIncome = 8700; // fallback; ideally passed in from income breakdown
+  const totalContrib = monthlyContribution + spouseMonthlyContribution;
+  const projectedSavingsRateNeeded = totalMonthlyIncome > 0
+    ? Math.round(((totalContrib + monthlyInvestmentToHitTarget) / totalMonthlyIncome) * 100)
+    : 0;
+
+  const earliestAnyTier = scenarios
+    .map(s => s.suggestedAge)
+    .filter((a): a is number => a !== null)
+    .reduce((min, a) => Math.min(min, a), Infinity);
+
+  const currentLoc    = getLocation(currentLocationId);
+  const retirementLoc = getLocation(retirementLocationId);
+
+  return {
+    scenarios,
+    earliestAnyTier: earliestAnyTier === Infinity ? null : earliestAnyTier,
+    constraintDriver,
+    monthlyInvestmentToHitTarget,
+    expenseReductionToHitTarget,
+    projectedSavingsRateNeeded,
+    locationFactor: locFactor,
+    currentLocationName: currentLoc.name,
+    retirementLocationName: retirementLoc.name,
+    locationImpactPct: Math.round((locFactor - 1) * 100),
+  };
+}

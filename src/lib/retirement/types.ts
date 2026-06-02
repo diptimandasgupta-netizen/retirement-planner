@@ -14,6 +14,8 @@ export interface RetirementInputs {
   householdType: HouseholdType;
   // Spouse
   spouseAge: number;
+  spouseRetirementAge: number;
+  spouseCurrentSavings: number;
   spouseMonthlyContribution: number;
   survivorBenefitRate: number;      // fraction, e.g. 0.67
   // Family
@@ -21,16 +23,21 @@ export interface RetirementInputs {
   childAnnualExpense: number;
   educationCostPerChild: number;
   childExpenseYears: number;        // how many years per child expenses run
+  currentLocationId: string;        // where you live now (COL baseline)
+  retirementLocationId: string;     // where you plan to retire
 }
 
 export interface YearlyDataPoint {
   age: number;
   year: number;
-  portfolioNominal: number;
-  portfolioReal: number;
+  portfolioNominal: number;        // combined household portfolio
+  portfolioReal: number;           // combined, inflation-adjusted
+  portfolioNominalPrimary: number; // primary's solo accumulation (for chart breakdown)
+  portfolioNominalSpouse: number;  // spouse's solo accumulation (for chart breakdown)
   annualContribution: number;
   withdrawalAmount: number;
-  isRetirementYear: boolean;
+  isRetirementYear: boolean;       // primary retires
+  isSpouseRetirementYear: boolean; // spouse retires
   isDepletionYear: boolean;
 }
 

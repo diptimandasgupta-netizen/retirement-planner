@@ -1,5 +1,6 @@
 import { RetirementInputs, MonteCarloResult } from '../types';
 import { MONTE_CARLO, HOUSEHOLD_EXPENSE_MULTIPLIER } from '../constants';
+import { getLocation, relativeLocationFactor } from '../data/locations';
 
 function gaussianRandom(mean: number, stdDev: number): number {
   const u1 = Math.max(1e-10, Math.random());
@@ -17,33 +18,45 @@ function percentile(sorted: number[], p: number): number {
 }
 
 function runSingleSimulation(inputs: RetirementInputs): number[] {
-  const { currentAge, retirementAge, lifeExpectancy, currentSavings, expectedReturnRate, inflationRate, retirementAnnualExpenses, householdType, numChildren, monthlyContribution, spouseMonthlyContribution, survivorBenefitRate } = inputs;
+  const {
+    currentAge, retirementAge, lifeExpectancy,
+    currentSavings, monthlyContribution,
+    spouseAge, spouseRetirementAge, spouseCurrentSavings, spouseMonthlyContribution,
+    expectedReturnRate, inflationRate, retirementAnnualExpenses,
+    householdType, numChildren, survivorBenefitRate,
+  } = inputs;
 
+  const isCouple = householdType === 'spouse' || householdType === 'family';
   const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
-  let totalMonthlyContrib = monthlyContribution;
-  if (householdType === 'spouse' || householdType === 'family') {
-    totalMonthlyContrib += spouseMonthlyContribution;
-  }
-  const annualContrib = totalMonthlyContrib * 12;
+  const locFactor = relativeLocationFactor(
+    getLocation(inputs.currentLocationId),
+    getLocation(inputs.retirementLocationId),
+  );
 
-  let portfolio = currentSavings;
+  let portfolio = currentSavings + (isCouple ? spouseCurrentSavings : 0);
   const history: number[] = [portfolio];
 
   for (let age = currentAge; age < lifeExpectancy; age++) {
+    const t = age - currentAge;
+    const spouseCurrentAge = spouseAge + t;
     const yearReturn = gaussianRandom(expectedReturnRate, MONTE_CARLO.returnStdDev);
     const yearInflation = gaussianRandom(inflationRate, MONTE_CARLO.inflationStdDev);
 
-    if (age < retirementAge) {
-      portfolio = portfolio * (1 + yearReturn) + annualContrib;
+    const primaryRetired = age >= retirementAge;
+    const spouseRetired = !isCouple || spouseCurrentAge >= spouseRetirementAge;
+
+    const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
+    const spouseContrib = (isCouple && !spouseRetired) ? spouseMonthlyContribution * 12 : 0;
+
+    if (!primaryRetired) {
+      portfolio = portfolio * (1 + yearReturn) + primaryContrib + spouseContrib;
     } else {
       const yearsRetired = age - retirementAge;
-      let baseExpenses = retirementAnnualExpenses * expMultiplier;
-      // After survivor age (approx 25 years into retirement), reduce
-      if (yearsRetired > 25 && (householdType === 'spouse' || householdType === 'family')) {
-        baseExpenses *= survivorBenefitRate;
-      }
+      let baseExpenses = retirementAnnualExpenses * expMultiplier * locFactor;
+      if (isCouple && !spouseRetired) baseExpenses *= 0.6;
+      if (yearsRetired > 25 && isCouple) baseExpenses *= survivorBenefitRate;
       const withdrawal = baseExpenses * (1 + yearInflation) ** yearsRetired;
-      portfolio = portfolio * (1 + yearReturn) - withdrawal;
+      portfolio = portfolio * (1 + yearReturn) + spouseContrib - withdrawal;
       if (portfolio < 0) portfolio = 0;
     }
 
