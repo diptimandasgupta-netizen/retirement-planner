@@ -299,6 +299,56 @@ function TaxSummary({ grossMonthly, person, period }: {
 
 type Period = 'monthly' | 'annually';
 
+/** Income row — defined outside IncomeForm so React never remounts it on re-render */
+function IncomeRow({
+  cat, state, retirementAge, period, onChange,
+}: {
+  cat: IncomeCategory;
+  state: IncomeState;
+  retirementAge: number;
+  period: Period;
+  onChange: (s: IncomeState) => void;
+}) {
+  const { key, label, icon: Icon, hint, color, stopsAtRetirement } = cat;
+  const toDisplay = (monthly: number) => period === 'annually' ? Math.round(monthly * 12) : monthly;
+  const toMonthly = (v: number)       => period === 'annually' ? v / 12 : v;
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+      <div className="flex items-center gap-1.5 w-5">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+        <Icon size={12} className="text-slate-400" />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-slate-700 truncate">{label}</p>
+          {stopsAtRetirement && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
+              stops at {retirementAge}
+            </span>
+          )}
+          {!stopsAtRetirement && state[key] > 0 && (
+            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium shrink-0">
+              continues
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-slate-400 truncate">{hint}</p>
+      </div>
+      <div className="relative">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+        <input
+          type="number"
+          value={toDisplay(state[key])}
+          min={0}
+          step={period === 'monthly' ? 100 : 1000}
+          onChange={e => onChange({ ...state, [key]: toMonthly(Number(e.target.value)) })}
+          className="w-28 pl-5 pr-2 py-1 border border-slate-200 rounded-lg text-xs text-slate-900 text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+    </div>
+  );
+}
+
 /** Full-width income form used for both single and each tab in couple mode */
 function IncomeForm({
   state, person, onChange, onPassiveChange,
@@ -320,9 +370,6 @@ function IncomeForm({
   const passive = CATEGORIES.filter(c => !c.stopsAtRetirement);
   const passiveTotal = passive.reduce((s, c) => s + state[c.key], 0);
 
-  const toDisplay  = (monthly: number) => period === 'annually' ? Math.round(monthly * 12) : monthly;
-  const toMonthly  = (v: number)       => period === 'annually' ? v / 12 : v;
-
   // Sync passive income to store without causing an infinite render loop
   const prevPassiveRef = useRef<number | null>(null);
   useEffect(() => {
@@ -331,45 +378,6 @@ function IncomeForm({
       onPassiveChange(passiveTotal);
     }
   }, [passiveTotal, onPassiveChange]);
-
-  function Row({ cat }: { cat: IncomeCategory }) {
-    const { key, label, icon: Icon, hint, color, stopsAtRetirement } = cat;
-    return (
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-        <div className="flex items-center gap-1.5 w-5">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
-          <Icon size={12} className="text-slate-400" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs font-medium text-slate-700 truncate">{label}</p>
-            {stopsAtRetirement && (
-              <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium shrink-0">
-                stops at {retirementAge}
-              </span>
-            )}
-            {!stopsAtRetirement && state[key] > 0 && (
-              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium shrink-0">
-                continues
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-400 truncate">{hint}</p>
-        </div>
-        <div className="relative">
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
-          <input
-            type="number"
-            value={toDisplay(state[key])}
-            min={0}
-            step={period === 'monthly' ? 100 : 1000}
-            onChange={e => onChange({ ...state, [key]: toMonthly(Number(e.target.value)) })}
-            className="w-28 pl-5 pr-2 py-1 border border-slate-200 rounded-lg text-xs text-slate-900 text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-2">
@@ -397,7 +405,7 @@ function IncomeForm({
           <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
           Active Income — stops at retirement (age {retirementAge})
         </p>
-        {active.map(cat => <Row key={cat.key} cat={cat} />)}
+        {active.map(cat => <IncomeRow key={cat.key} cat={cat} state={state} retirementAge={retirementAge} period={period} onChange={onChange} />)}
       </div>
 
       {/* Passive income block */}
@@ -406,7 +414,7 @@ function IncomeForm({
           <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
           Passive Income — continues in retirement
         </p>
-        {passive.map(cat => <Row key={cat.key} cat={cat} />)}
+        {passive.map(cat => <IncomeRow key={cat.key} cat={cat} state={state} retirementAge={retirementAge} period={period} onChange={onChange} />)}
         {passiveTotal > 0 && (
           <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 flex justify-between text-xs">
             <span className="text-green-700">Reduces retirement withdrawals by</span>

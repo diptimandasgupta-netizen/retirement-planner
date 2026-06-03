@@ -13,6 +13,7 @@ const GROUPS = [
   { key: 'Caribbean',     flag: '🏖️', label: 'Caribbean'       },
   { key: 'Europe',        flag: '🌍', label: 'Europe'           },
   { key: 'Asia',          flag: '🌏', label: 'Asia'             },
+  { key: 'Pacific',       flag: '🦘', label: 'Pacific'          },
   { key: 'Latin America', flag: '🌎', label: 'Latin America'    },
 ] as const;
 
