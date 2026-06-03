@@ -83,9 +83,10 @@ const TABS: { id: Tab; label: string; icon: typeof TrendingUp; tooltip: TabToolt
 export function RetirementPlanner() {
   useRetirementCalc();
 
-  const computeResults = useRetirementStore(s => s.computeResults);
+  const computeResults  = useRetirementStore(s => s.computeResults);
   const monteCarloEnabled = useRetirementStore(s => s.monteCarloEnabled);
-  const monteCarloResult = useRetirementStore(s => s.monteCarloResult);
+  const monteCarloResult  = useRetirementStore(s => s.monteCarloResult);
+  const importVersion   = useRetirementStore(s => s.importVersion);
 
   const [activeTab, setActiveTab] = useState<Tab>('suggest');
 
@@ -126,7 +127,7 @@ export function RetirementPlanner() {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Profile</p>
                   <ImportExport />
                 </div>
-                <InputPanel />
+                <InputPanel key={importVersion} />
               </div>
             </div>
           </aside>

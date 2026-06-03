@@ -295,7 +295,7 @@ function parseCsv(text: string): { inputs: Partial<RetirementInputs>; warnings: 
 type Status = { type: 'success' | 'error'; message: string; warnings?: string[] } | null;
 
 export function ImportExport() {
-  const { inputs, setInputs, computeResults } = useRetirementStore();
+  const { inputs, setInputs, computeResults, bumpImportVersion } = useRetirementStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>(null);
 
@@ -329,6 +329,7 @@ export function ImportExport() {
         const { inputs: parsed, warnings } = parseCsv(text);
         setInputs(parsed as RetirementInputs);
         computeResults();
+        bumpImportVersion(); // force InputPanel to remount so local state re-initialises
         show({
           type: 'success',
           message: 'Profile imported successfully — all fields updated.',

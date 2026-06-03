@@ -10,6 +10,10 @@ interface RetirementStore {
   inputs: RetirementInputs;
   setInputs: (partial: Partial<RetirementInputs>) => void;
 
+  // Incremented on every CSV import so InputPanel remounts and re-reads fresh store values
+  importVersion: number;
+  bumpImportVersion: () => void;
+
   results: ComputedResults | null;
   computeResults: () => void;
 
@@ -28,6 +32,9 @@ export const useRetirementStore = create<RetirementStore>((set, get) => ({
   setInputs: (partial) => {
     set(state => ({ inputs: { ...state.inputs, ...partial } }));
   },
+
+  importVersion: 0,
+  bumpImportVersion: () => set(state => ({ importVersion: state.importVersion + 1 })),
 
   results: null,
 
