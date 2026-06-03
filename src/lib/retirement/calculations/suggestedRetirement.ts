@@ -2,6 +2,7 @@ import { RetirementInputs } from '../types';
 import { HOUSEHOLD_EXPENSE_MULTIPLIER } from '../constants';
 import { getLocation, relativeLocationFactor } from '../data/locations';
 import { computeFIRE, FIRE_TIER_EXPENSE_SCALE } from './fireCalculations';
+import { getJointRetirementAge } from './portfolioGrowth';
 
 export interface RetirementScenario {
   tier: 'lean' | 'regular' | 'fat';
@@ -141,6 +142,10 @@ export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedR
   const minSearchAge = Math.max(currentAge + 1, 35);
   const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
 
+  // For couples, all "target retirement age" comparisons use the joint age
+  // (when the later-retiring partner retires) so the numbers stay consistent
+  const jointRetirementAge = getJointRetirementAge(inputs);
+
   // ── Use the EXACT same FIRE numbers as the FIRE tab ─────────────────────
   const fire = computeFIRE(inputs);
   const fireNumbers = {
@@ -176,13 +181,13 @@ export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedR
       suggestedAge: found.age,
       portfolioAtSuggestedAge: found.portfolioAtAge,
       corpusNeededAtSuggestedAge: corpusNeeded,   // ← now matches FIRE tab exactly
-      yearsVsTarget: found.age !== null ? found.age - retirementAge : 0,
+      yearsVsTarget: found.age !== null ? found.age - jointRetirementAge : 0,
       alreadyPossible,
     };
   });
 
   // Constraint driver: compare income-side vs expense-side sensitivity
-  const baseAge = scenarios.find(s => s.tier === 'regular')?.suggestedAge ?? retirementAge;
+  const baseAge = scenarios.find(s => s.tier === 'regular')?.suggestedAge ?? jointRetirementAge;
   const highIncomeResult = findEarliestRetirementAge(
     { ...inputs, monthlyContribution: inputs.monthlyContribution * 1.5 },
     minSearchAge
@@ -200,14 +205,15 @@ export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedR
   else if (expenseImprovement > incomeImprovement + 2) constraintDriver = 'expenses';
 
   // How much extra monthly investment needed to hit user's target
-  const regularResult = simulatePortfolio(inputs, retirementAge);
+  // Use jointRetirementAge so the target matches the couple's actual full-retirement date
+  const regularResult = simulatePortfolio(inputs, jointRetirementAge);
   const monthlyInvestmentToHitTarget = regularResult.survivesToEnd
     ? 0
-    : findContributionForAge(inputs, retirementAge);
+    : findContributionForAge(inputs, jointRetirementAge);
 
   const expenseReductionToHitTarget = regularResult.survivesToEnd
     ? 0
-    : findExpenseReductionForAge(inputs, retirementAge);
+    : findExpenseReductionForAge(inputs, jointRetirementAge);
 
   // Savings rate needed
   const totalMonthlyIncome = 8700; // fallback; ideally passed in from income breakdown

@@ -6,6 +6,22 @@ export function calcRealReturn(nominal: number, inflation: number): number {
   return (1 + nominal) / (1 + inflation) - 1;
 }
 
+/**
+ * For a couple, returns the primary person's age when the LAST of the two retires.
+ * This is the point when full withdrawals begin and "value at retirement" is measured.
+ *
+ * Example: primary age 40 retiring at 62, spouse age 35 retiring at 65
+ *   → spouse retires when primary is 40 + (65 − 35) = 70
+ *   → jointRetirementAge = max(62, 70) = 70
+ */
+export function getJointRetirementAge(inputs: RetirementInputs): number {
+  const { currentAge, retirementAge, spouseAge, spouseRetirementAge, householdType } = inputs;
+  const isCouple = householdType === 'spouse' || householdType === 'family';
+  if (!isCouple) return retirementAge;
+  const spouseRetirementAsPrimaryAge = currentAge + (spouseRetirementAge - spouseAge);
+  return Math.max(retirementAge, spouseRetirementAsPrimaryAge);
+}
+
 function educationLumpSum(inputs: RetirementInputs, age: number): number {
   if (inputs.householdType !== 'family' || inputs.numChildren === 0) return 0;
   let deduction = 0;
@@ -35,11 +51,8 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
     getLocation(inputs.retirementLocationId),
   );
 
-  // Both retire when the LATER of the two retires — full joint retirement
-  // Withdrawals begin at primary retirement; spouse still contributes until their date
-  const bothRetiredAge = isCouple
-    ? retirementAge + Math.max(0, (spouseAge + (spouseRetirementAge - spouseAge)) - (currentAge + (retirementAge - currentAge)))
-    : retirementAge;
+  // The joint retirement age — when the LAST of the two retires
+  const jointRetirementAge = getJointRetirementAge(inputs);
 
   // Track primary and spouse portfolios independently for breakdown display
   let portfolioPrimary = currentSavings;
@@ -75,10 +88,10 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
 
     const totalContrib = Math.max(0, primaryContrib + spouseContrib - childDeduction) - edLump;
 
-    // ── Property proceeds at retirement ──────────────────────────────────
+    // ── Property proceeds at joint retirement (when LAST person retires) ─
     let propertyProceeds = 0;
-    if (age === retirementAge && properties?.length) {
-      const yearsToRetirement = retirementAge - currentAge;
+    if (age === jointRetirementAge && properties?.length) {
+      const yearsToRetirement = jointRetirementAge - currentAge;
       propertyProceeds = properties
         .filter(p => p.sellAtRetirement)
         .reduce((sum, p) => sum + p.currentValue * (1 + p.appreciationRate) ** yearsToRetirement, 0);
@@ -145,10 +158,9 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
 
 export function computeCorpus(inputs: RetirementInputs, yearlyData: YearlyDataPoint[]): RetirementCorpus {
   const {
-    retirementAge, retirementAnnualExpenses, expectedReturnRate,
+    retirementAnnualExpenses, expectedReturnRate,
     inflationRate, householdType, numChildren, currentAge,
-    monthlyContribution, spouseMonthlyContribution, spouseCurrentSavings,
-    spouseAge, spouseRetirementAge,
+    monthlyContribution, spouseMonthlyContribution,
   } = inputs;
 
   const isCouple = householdType === 'spouse' || householdType === 'family';
@@ -157,11 +169,18 @@ export function computeCorpus(inputs: RetirementInputs, yearlyData: YearlyDataPo
     getLocation(inputs.currentLocationId),
     getLocation(inputs.retirementLocationId),
   );
-  const yearsToRetirement = retirementAge - currentAge;
+
+  // Use the joint retirement age — the point when the LAST person retires and full
+  // withdrawals begin. This is what "value at retirement" should reflect.
+  const jointAge = getJointRetirementAge(inputs);
+  const yearsToRetirement = jointAge - currentAge;
+
   const expAtRetirement = retirementAnnualExpenses * expMultiplier * locFactor * (1 + inflationRate) ** yearsToRetirement;
   const nominalNeeded = expAtRetirement / 0.04;
 
-  const retirementPoint = yearlyData.find(d => d.age === retirementAge);
+  // Portfolio value at the joint retirement age
+  const retirementPoint = yearlyData.find(d => d.age === jointAge)
+    ?? yearlyData[yearlyData.length - 1];
   const projectedAtRetirement = retirementPoint?.portfolioNominal ?? 0;
   const gap = projectedAtRetirement - nominalNeeded;
 

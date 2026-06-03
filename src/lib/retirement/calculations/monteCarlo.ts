@@ -1,6 +1,7 @@
 import { RetirementInputs, MonteCarloResult } from '../types';
 import { MONTE_CARLO, HOUSEHOLD_EXPENSE_MULTIPLIER } from '../constants';
 import { getLocation, relativeLocationFactor } from '../data/locations';
+import { getJointRetirementAge } from './portfolioGrowth';
 
 function gaussianRandom(mean: number, stdDev: number): number {
   const u1 = Math.max(1e-10, Math.random());
@@ -34,6 +35,9 @@ function runSingleSimulation(inputs: RetirementInputs): number[] {
     getLocation(inputs.retirementLocationId),
   );
 
+  // Property sale proceeds are added when the LAST person retires (full retirement begins)
+  const jointAge = getJointRetirementAge(inputs);
+
   let portfolio = currentSavings + (isCouple ? spouseCurrentSavings : 0);
   const history: number[] = [portfolio];
 
@@ -49,9 +53,9 @@ function runSingleSimulation(inputs: RetirementInputs): number[] {
     const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
     const spouseContrib = (isCouple && !spouseRetired) ? spouseMonthlyContribution * 12 : 0;
 
-    // Property proceeds injected at retirement year
-    if (age === retirementAge && properties?.length) {
-      const yearsToRetirement = retirementAge - currentAge;
+    // Property proceeds injected at joint retirement (when both have retired)
+    if (age === jointAge && properties?.length) {
+      const yearsToRetirement = jointAge - currentAge;
       portfolio += properties
         .filter(p => p.sellAtRetirement)
         .reduce((sum, p) => sum + p.currentValue * (1 + p.appreciationRate) ** yearsToRetirement, 0);
