@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Zap, Flame, Star, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowRight, MapPin } from 'lucide-react';
 import { useRetirementStore } from '@/store/retirementStore';
 import { computeSuggestedRetirement } from '@/lib/retirement/calculations/suggestedRetirement';
+import { getJointRetirementAge } from '@/lib/retirement/calculations/portfolioGrowth';
 import { USDM } from '@/lib/retirement/constants';
 
 const TIER_CONFIG = {
@@ -25,24 +26,36 @@ function YearsChip({ years }: { years: number }) {
   );
 }
 
-function AgeTimeline({ currentAge, suggestedAge, targetAge, lifeExpectancy }: {
-  currentAge: number; suggestedAge: number | null; targetAge: number; lifeExpectancy: number;
+function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetAsPrimaryAge, lifeExpectancy, isCouple }: {
+  currentAge: number;
+  suggestedAge: number | null;
+  primaryTargetAge: number;       // primary's own set retirement age (amber)
+  spouseTargetAsPrimaryAge?: number; // spouse's retirement mapped to primary's age (rose)
+  lifeExpectancy: number;
+  isCouple?: boolean;
 }) {
+  const jointTarget = isCouple && spouseTargetAsPrimaryAge !== undefined
+    ? Math.max(primaryTargetAge, spouseTargetAsPrimaryAge)
+    : primaryTargetAge;
+
   const span = lifeExpectancy - currentAge;
   const pct = (age: number) => Math.max(0, Math.min(100, ((age - currentAge) / span) * 100));
+  const markerLeft = (age: number) => `${pct(age)}%`;
+
+  const retireLine = suggestedAge ?? jointTarget;
 
   return (
     <div className="relative h-8 my-2">
       {/* Track */}
       <div className="absolute top-3.5 left-0 right-0 h-1.5 bg-slate-200 rounded-full" />
 
-      {/* Working phase */}
+      {/* Working phase (up to suggested/joint retirement) */}
       <div className="absolute top-3.5 left-0 h-1.5 bg-blue-300 rounded-full transition-all"
-        style={{ width: `${pct(suggestedAge ?? targetAge)}%` }} />
+        style={{ width: `${pct(retireLine)}%` }} />
 
       {/* Retirement phase */}
       <div className="absolute top-3.5 h-1.5 bg-emerald-400 rounded-full transition-all"
-        style={{ left: `${pct(suggestedAge ?? targetAge)}%`, width: `${pct(lifeExpectancy) - pct(suggestedAge ?? targetAge)}%` }} />
+        style={{ left: markerLeft(retireLine), width: `${pct(lifeExpectancy) - pct(retireLine)}%` }} />
 
       {/* Current age dot */}
       <div className="absolute top-2" style={{ left: '0%' }}>
@@ -50,19 +63,27 @@ function AgeTimeline({ currentAge, suggestedAge, targetAge, lifeExpectancy }: {
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">{currentAge}</span>
       </div>
 
-      {/* Suggested retirement dot */}
-      {suggestedAge !== null && (
-        <div className="absolute top-2 transition-all" style={{ left: `${pct(suggestedAge)}%` }}>
-          <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow -translate-x-1/2" />
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-700 whitespace-nowrap">{suggestedAge}</span>
+      {/* Spouse target dot (rose) — show before suggested so it doesn't cover primary */}
+      {isCouple && spouseTargetAsPrimaryAge !== undefined && spouseTargetAsPrimaryAge !== primaryTargetAge && (
+        <div className="absolute top-2.5 transition-all" style={{ left: markerLeft(spouseTargetAsPrimaryAge) }}>
+          <div className="w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-white shadow -translate-x-1/2" />
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold text-rose-600 whitespace-nowrap">{spouseTargetAsPrimaryAge}</span>
         </div>
       )}
 
-      {/* Target retirement dot (if different) */}
-      {suggestedAge !== targetAge && (
-        <div className="absolute top-2.5 transition-all" style={{ left: `${pct(targetAge)}%` }}>
-          <div className="w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow -translate-x-1/2 opacity-80" />
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-amber-600 whitespace-nowrap">{targetAge}</span>
+      {/* Primary target dot (amber) */}
+      {primaryTargetAge !== suggestedAge && (
+        <div className="absolute top-2.5 transition-all" style={{ left: markerLeft(primaryTargetAge) }}>
+          <div className="w-3 h-3 rounded-full bg-amber-400 border-2 border-white shadow -translate-x-1/2 opacity-90" />
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-amber-600 whitespace-nowrap">{primaryTargetAge}</span>
+        </div>
+      )}
+
+      {/* Suggested (FIRE-viable joint) retirement dot (green) */}
+      {suggestedAge !== null && (
+        <div className="absolute top-2 transition-all" style={{ left: markerLeft(suggestedAge) }}>
+          <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow -translate-x-1/2" />
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-700 whitespace-nowrap">{suggestedAge}</span>
         </div>
       )}
 
@@ -92,6 +113,14 @@ export function SuggestedRetirement() {
   } = suggestion;
   const regularScenario = scenarios.find(s => s.tier === 'regular');
 
+  const isCouple = inputs.householdType === 'spouse' || inputs.householdType === 'family';
+  // Joint target = the later-retiring person's date expressed in primary's age
+  const jointTargetAge = getJointRetirementAge(inputs);
+  // Spouse's set target mapped to primary's age (for timeline dot)
+  const spouseTargetAsPrimaryAge = isCouple
+    ? inputs.currentAge + (inputs.spouseRetirementAge - inputs.spouseAge)
+    : undefined;
+
   return (
     <div className="space-y-4">
 
@@ -101,19 +130,27 @@ export function SuggestedRetirement() {
         {regularScenario?.suggestedAge ? (
           <>
             <p className="text-2xl font-bold">
-              You can retire at age <span className="text-yellow-300">{regularScenario.suggestedAge}</span>
+              {isCouple ? 'Your household can fully retire at age ' : 'You can retire at age '}
+              <span className="text-yellow-300">{regularScenario.suggestedAge}</span>
             </p>
             <p className="text-sm opacity-80 mt-1">
               {regularScenario.yearsVsTarget < 0
-                ? `${Math.abs(regularScenario.yearsVsTarget)} years earlier than your target of ${inputs.retirementAge}`
+                ? `${Math.abs(regularScenario.yearsVsTarget)} yr${Math.abs(regularScenario.yearsVsTarget) !== 1 ? 's' : ''} earlier than ${isCouple ? 'your joint target' : 'your target'} of ${jointTargetAge}`
                 : regularScenario.yearsVsTarget > 0
-                ? `${regularScenario.yearsVsTarget} years later than your target of ${inputs.retirementAge} — adjustments needed`
-                : `Right on your target age of ${inputs.retirementAge}`}
+                ? `${regularScenario.yearsVsTarget} yr${regularScenario.yearsVsTarget !== 1 ? 's' : ''} later than ${isCouple ? 'your joint target' : 'your target'} of ${jointTargetAge} — adjustments needed`
+                : `Right on ${isCouple ? 'your joint target' : 'your target'} age of ${jointTargetAge}`}
             </p>
+            {isCouple && (
+              <p className="text-xs opacity-70 mt-1">
+                Your target: {inputs.retirementAge} · Spouse target: {spouseTargetAsPrimaryAge} (your age when spouse retires)
+              </p>
+            )}
           </>
         ) : (
           <>
-            <p className="text-xl font-bold">Retirement not yet achievable by age 80</p>
+            <p className="text-xl font-bold">
+              {isCouple ? 'Full household retirement' : 'Retirement'} not yet achievable by age 80
+            </p>
             <p className="text-sm opacity-80 mt-1">Increase contributions or reduce planned expenses</p>
           </>
         )}
@@ -122,17 +159,21 @@ export function SuggestedRetirement() {
       {/* Timeline (regular scenario) */}
       {regularScenario?.suggestedAge && (
         <div className="bg-white rounded-xl border border-slate-200 px-4 pt-4 pb-8">
-          <div className="flex justify-between text-xs text-slate-500 mb-1">
+          <div className="flex flex-wrap justify-between gap-y-1 text-xs text-slate-500 mb-1">
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-1.5 rounded bg-blue-300" /> Working</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-1.5 rounded bg-emerald-400" /> Retired</span>
-            {regularScenario.suggestedAge !== inputs.retirementAge &&
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-1.5 rounded bg-emerald-400" /> Can retire</span>
+            {inputs.retirementAge !== regularScenario.suggestedAge &&
               <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400" /> Your target</span>}
+            {isCouple && spouseTargetAsPrimaryAge !== inputs.retirementAge &&
+              <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-500" /> Spouse target</span>}
           </div>
           <AgeTimeline
             currentAge={inputs.currentAge}
             suggestedAge={regularScenario.suggestedAge}
-            targetAge={inputs.retirementAge}
+            primaryTargetAge={inputs.retirementAge}
+            spouseTargetAsPrimaryAge={spouseTargetAsPrimaryAge}
             lifeExpectancy={inputs.lifeExpectancy}
+            isCouple={isCouple}
           />
         </div>
       )}
@@ -170,8 +211,20 @@ export function SuggestedRetirement() {
                     <p className="font-semibold text-slate-700">{USDM(s.corpusNeededAtSuggestedAge)}</p>
                   </div>
                   <div>
-                    <span className="text-slate-500">Working years left</span>
-                    <p className="font-semibold text-slate-700">{s.suggestedAge - inputs.currentAge} yrs</p>
+                    {isCouple ? (
+                      <>
+                        <span className="text-slate-500">Years until both retire</span>
+                        <p className="font-semibold text-slate-700">{s.suggestedAge - inputs.currentAge} yrs</p>
+                        <p className="text-slate-400 text-xs">
+                          You: {Math.max(0, inputs.retirementAge - inputs.currentAge)} · Spouse: {Math.max(0, inputs.spouseRetirementAge - inputs.spouseAge)} working yrs
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-slate-500">Working years left</span>
+                        <p className="font-semibold text-slate-700">{s.suggestedAge - inputs.currentAge} yrs</p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -205,7 +258,7 @@ export function SuggestedRetirement() {
       {(monthlyInvestmentToHitTarget > 0 || expenseReductionToHitTarget > 0) && (
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">
-            To retire at your target (age {inputs.retirementAge})
+            To {isCouple ? 'fully retire' : 'retire'} at your {isCouple ? 'joint ' : ''}target (age {jointTargetAge})
           </div>
           <div className="divide-y divide-slate-100">
             {monthlyInvestmentToHitTarget > 0 && (
@@ -216,7 +269,7 @@ export function SuggestedRetirement() {
                   <span className="font-bold text-blue-700">${monthlyInvestmentToHitTarget.toLocaleString()}/mo</span>
                 </div>
                 <ArrowRight size={12} className="text-slate-400" />
-                <span className="text-xs font-bold text-green-600">Retire at {inputs.retirementAge}</span>
+                <span className="text-xs font-bold text-green-600">Retire at {jointTargetAge}</span>
               </div>
             )}
             {expenseReductionToHitTarget > 0 && (
@@ -227,7 +280,7 @@ export function SuggestedRetirement() {
                   <span className="font-bold text-emerald-700">${expenseReductionToHitTarget.toLocaleString()}/mo</span>
                 </div>
                 <ArrowRight size={12} className="text-slate-400" />
-                <span className="text-xs font-bold text-green-600">Retire at {inputs.retirementAge}</span>
+                <span className="text-xs font-bold text-green-600">Retire at {jointTargetAge}</span>
               </div>
             )}
           </div>
@@ -235,11 +288,13 @@ export function SuggestedRetirement() {
       )}
 
       {/* Already on track */}
-      {monthlyInvestmentToHitTarget === 0 && regularScenario?.suggestedAge && regularScenario.suggestedAge <= inputs.retirementAge && (
+      {monthlyInvestmentToHitTarget === 0 && regularScenario?.suggestedAge && regularScenario.suggestedAge <= jointTargetAge && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
           <CheckCircle2 size={16} className="text-green-600 shrink-0" />
           <p className="text-xs text-green-700 font-medium">
-            You&apos;re on track to retire at {inputs.retirementAge} or earlier. Keep it up!
+            {isCouple
+              ? `You're on track — your household can fully retire by age ${jointTargetAge} or earlier. Keep it up!`
+              : `You're on track to retire at ${jointTargetAge} or earlier. Keep it up!`}
           </p>
         </div>
       )}
