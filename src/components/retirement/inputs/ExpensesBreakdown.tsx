@@ -309,20 +309,44 @@ function Tab({ title, badge, active, onClick, color }: {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+// Maps category key → store field name for each phase
+const PRE_STORE_KEYS:  Record<string, keyof import('@/lib/retirement/types').RetirementInputs> = {
+  housing: 'expenseHousing', food: 'expenseFood', transport: 'expenseTransport',
+  healthcare: 'expenseHealthcare', entertainment: 'expenseEntertainment',
+  insurance: 'expenseInsurance', utilities: 'expenseUtilities', other: 'expenseOther',
+};
+const POST_STORE_KEYS: Record<string, keyof import('@/lib/retirement/types').RetirementInputs> = {
+  housing: 'retExpenseHousing', food: 'retExpenseFood', transport: 'retExpenseTransport',
+  healthcare: 'retExpenseHealthcare', entertainment: 'retExpenseEntertainment',
+  insurance: 'retExpenseInsurance', utilities: 'retExpenseUtilities', other: 'retExpenseOther',
+};
+
+function stateFromStore(inputs: Record<string, unknown>, keyMap: Record<string, string>, fallback: () => ExpenseState): ExpenseState {
+  const hasData = Object.values(keyMap).some(k => ((inputs[k] as number) ?? 0) > 0);
+  if (!hasData) return fallback();
+  return Object.fromEntries(CATEGORIES.map(c => [c.key, (inputs[keyMap[c.key]] as number) ?? 0]));
+}
+
 export function ExpensesBreakdown() {
   const { inputs, setInputs } = useRetirementStore();
   const [period, setPeriod] = useState<Period>('monthly');
   const [activeTab, setActiveTab] = useState<'pre' | 'post'>('pre');
   const [mortgages, setMortgagesRaw] = useState<Mortgage[]>([]);
 
-  const [pre, setPre]   = useState<ExpenseState>(initPre);
-  const [post, setPost] = useState<ExpenseState>(initPost);
+  const inputsMap = inputs as unknown as Record<string, unknown>;
+
+  const [pre, setPre]   = useState<ExpenseState>(() => stateFromStore(inputsMap, PRE_STORE_KEYS,  initPre));
+  const [post, setPost] = useState<ExpenseState>(() => stateFromStore(inputsMap, POST_STORE_KEYS, initPost));
 
   const syncStore = useCallback((nextPre: ExpenseState, nextPost: ExpenseState) => {
+    const preFields  = Object.fromEntries(CATEGORIES.map(c => [PRE_STORE_KEYS[c.key],  nextPre[c.key]]));
+    const postFields = Object.fromEntries(CATEGORIES.map(c => [POST_STORE_KEYS[c.key], nextPost[c.key]]));
     setInputs({
-      annualExpenses: Math.round(sumMonthly(nextPre) * 12),
+      annualExpenses:           Math.round(sumMonthly(nextPre)  * 12),
       retirementAnnualExpenses: Math.round(sumMonthly(nextPost) * 12),
-    });
+      ...preFields,
+      ...postFields,
+    } as never);
   }, [setInputs]);
 
   const updatePre  = (key: string, monthly: number) => { const n = { ...pre,  [key]: monthly }; setPre(n);  syncStore(n, post); };

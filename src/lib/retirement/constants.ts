@@ -23,6 +23,23 @@ export const DEFAULTS: RetirementInputs = {
   childExpenseYears: 18,
   alreadyRetired: false,
   spouseAlreadyRetired: false,
+  // Child expense categories (0 = unselected)
+  childExpenseDaycare: 0,
+  childExpensePublicExtras: 0,
+  childExpensePrivateSchool: 0,
+  childExpenseActivities: 0,
+  childExpensePremiumActivities: 0,
+  childExpenseHealthcare: 0,
+  childExpenseCollegeSavings: 0,
+  childExpenseCollegeTuition: 0,
+  childExpenseBabysitter: 0,
+  childExpenseFoodClothing: 0,
+  // Expense breakdown — pre-retirement (monthly, sum = annualExpenses/12 = 5000)
+  expenseHousing: 2000, expenseFood: 800, expenseTransport: 500, expenseHealthcare: 400,
+  expenseEntertainment: 300, expenseInsurance: 350, expenseUtilities: 200, expenseOther: 450,
+  // Expense breakdown — in retirement (monthly, sum = retirementAnnualExpenses/12 = 4000)
+  retExpenseHousing: 1500, retExpenseFood: 700, retExpenseTransport: 350, retExpenseHealthcare: 700,
+  retExpenseEntertainment: 350, retExpenseInsurance: 200, retExpenseUtilities: 150, retExpenseOther: 50,
   // Savings breakdown defaults (sum matches currentSavings / spouseCurrentSavings)
   savingsCash: 10000,
   savingsInvestments: 85000,

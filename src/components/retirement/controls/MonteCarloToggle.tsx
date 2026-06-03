@@ -6,12 +6,12 @@ export function MonteCarloToggle() {
   const { monteCarloEnabled, monteCarloRunning, monteCarloResult, toggleMonteCarlo } = useRetirementStore();
 
   return (
-    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3">
+    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 rounded-xl p-3">
       <div className="flex items-center gap-2">
-        <BarChart2 size={16} className="text-slate-500" />
+        <BarChart2 size={16} className="text-indigo-500" />
         <div>
-          <p className="text-sm font-semibold text-slate-700">Monte Carlo Simulation</p>
-          <p className="text-xs text-slate-500">1,000 random scenarios</p>
+          <p className="text-sm font-semibold text-indigo-800">Monte Carlo Simulation</p>
+          <p className="text-xs text-indigo-500/70">1,000 random scenarios</p>
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -30,7 +30,7 @@ export function MonteCarloToggle() {
           onClick={toggleMonteCarlo}
           disabled={monteCarloRunning}
           className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${
-            monteCarloEnabled ? 'bg-blue-500' : 'bg-slate-300'
+            monteCarloEnabled ? 'bg-gradient-to-r from-violet-500 to-indigo-500' : 'bg-slate-300'
           }`}
         >
           {monteCarloRunning ? (

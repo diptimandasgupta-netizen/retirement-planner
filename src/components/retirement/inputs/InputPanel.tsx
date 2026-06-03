@@ -7,18 +7,19 @@ import { ExpensesBreakdown } from './ExpensesBreakdown';
 import { IncomeBreakdown } from './IncomeBreakdown';
 import { LocationSelector } from './LocationSelector';
 import { PropertiesBreakdown } from './PropertiesBreakdown';
+import { ChildExpensesSelector } from './ChildExpensesSelector';
 import { useRetirementStore } from '@/store/retirementStore';
 import { HouseholdType } from '@/lib/retirement/types';
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
+    <div className="border border-violet-200/60 rounded-xl overflow-hidden shadow-sm">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 hover:from-violet-100 hover:to-indigo-100 transition-colors text-left"
       >
-        <span className="font-semibold text-slate-700 text-sm">{title}</span>
+        <span className="font-semibold text-violet-800 text-sm">{title}</span>
         {open ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
       </button>
       {open && <div className="p-4 space-y-4">{children}</div>}
@@ -35,12 +36,12 @@ function SliderField({
     <div className="space-y-1">
       <div className="flex justify-between items-center">
         <label className="text-xs font-medium text-slate-600">{label}</label>
-        <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{value}{unit}</span>
+        <span className="text-xs font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">{value}{unit}</span>
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        className="w-full h-2 bg-violet-100 rounded-lg appearance-none cursor-pointer"
       />
       <div className="flex justify-between text-xs text-slate-400">
         <span>{min}{unit}</span><span>{max}{unit}</span>
@@ -60,7 +61,7 @@ function PctSlider({ label, value, min = 1, max, onChange }: { label: string; va
       <input
         type="range" min={min} max={max} step={1} value={pct}
         onChange={e => onChange(Number(e.target.value) / 100)}
-        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        className="w-full h-2 bg-violet-100 rounded-lg appearance-none cursor-pointer"
       />
       <div className="flex justify-between text-xs text-slate-400">
         <span>{min}%</span><span>{max}%</span>
@@ -146,10 +147,10 @@ export function InputPanel() {
             <button
               key={type}
               onClick={() => setInputs({ householdType: type })}
-              className={`py-2 px-2 rounded-lg text-xs font-semibold capitalize border-2 transition-all ${
+              className={`py-2 px-2 rounded-xl text-xs font-semibold capitalize border-2 transition-all ${
                 inputs.householdType === type
-                  ? 'border-blue-500 bg-blue-500 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
+                  ? 'border-violet-500 bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-200'
+                  : 'border-violet-200/60 bg-white text-slate-600 hover:border-violet-400 hover:bg-violet-50'
               }`}
             >
               {type === 'single' ? '👤 Single' : type === 'spouse' ? '👫 Spouse' : '👨‍👩‍👧 Family'}
@@ -290,9 +291,9 @@ export function InputPanel() {
       <Section title="Returns & Inflation">
         <PctSlider label="Expected Annual Return" value={inputs.expectedReturnRate} max={15} onChange={set('expectedReturnRate')} />
         <PctSlider label="Inflation Rate" value={inputs.inflationRate} max={10} onChange={set('inflationRate')} />
-        <div className="flex items-center gap-2 bg-green-50 rounded-lg p-3">
-          <span className="text-xs text-green-700 font-medium">Real Return:</span>
-          <span className="text-sm font-bold text-green-700">
+        <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 rounded-xl p-3">
+          <span className="text-xs text-emerald-700 font-semibold">Real Return:</span>
+          <span className="text-sm font-bold text-emerald-600">
             {(((1 + inputs.expectedReturnRate) / (1 + inputs.inflationRate) - 1) * 100).toFixed(2)}%
           </span>
         </div>
@@ -315,8 +316,7 @@ export function InputPanel() {
       {isFamily && (
         <Section title="Children & Education" defaultOpen={true}>
           <SliderField label="Number of Children" value={inputs.numChildren} min={1} max={6} onChange={set('numChildren')} />
-          <CurrencyField label="Annual Child Expense / Child" value={inputs.childAnnualExpense} onChange={set('childAnnualExpense')} />
-          <CurrencyField label="Education Cost / Child" value={inputs.educationCostPerChild} onChange={set('educationCostPerChild')} hint="Total college fund per child" />
+          <ChildExpensesSelector />
         </Section>
       )}
     </div>

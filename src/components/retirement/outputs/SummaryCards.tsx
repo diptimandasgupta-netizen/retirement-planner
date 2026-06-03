@@ -51,19 +51,16 @@ export function SummaryCards() {
   ];
 
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700',
-    green: 'bg-green-50 border-green-200 text-green-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    amber: 'bg-amber-50 border-amber-200 text-amber-700',
+    blue:   'bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-400/30 text-white',
+    purple: 'bg-gradient-to-br from-violet-500 to-purple-600 border-violet-400/30 text-white',
+    green:  'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-400/30 text-white',
+    red:    'bg-gradient-to-br from-rose-500 to-red-600 border-rose-400/30 text-white',
+    amber:  'bg-gradient-to-br from-amber-400 to-orange-500 border-amber-400/30 text-white',
   };
 
   const iconColorMap: Record<string, string> = {
-    blue: 'text-blue-500',
-    purple: 'text-purple-500',
-    green: 'text-green-500',
-    red: 'text-red-500',
-    amber: 'text-amber-500',
+    blue: 'text-blue-200', purple: 'text-violet-200',
+    green: 'text-emerald-200', red: 'text-rose-200', amber: 'text-amber-200',
   };
 
   return (
@@ -81,9 +78,9 @@ export function SummaryCards() {
           <div key={label} className={`rounded-xl border p-4 ${colorMap[color]}`}>
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium opacity-80 mb-1 leading-tight">{label}</p>
-                <p className="text-xl font-bold truncate">{value}</p>
-                <p className="text-xs opacity-70 mt-1 leading-tight">{sub}</p>
+                <p className="text-xs font-semibold opacity-80 mb-1 leading-tight uppercase tracking-wide">{label}</p>
+                <p className="text-xl font-extrabold truncate drop-shadow">{value}</p>
+                <p className="text-xs opacity-75 mt-1 leading-tight">{sub}</p>
               </div>
               <Icon size={20} className={`${iconColorMap[color]} opacity-70 shrink-0 ml-2`} />
             </div>

@@ -33,6 +33,35 @@ export interface RetirementInputs {
   childExpenseYears: number;        // how many years per child expenses run
   alreadyRetired: boolean;
   spouseAlreadyRetired: boolean;
+  // ── Child expense categories (annual per child; 0 = not selected) ──────
+  childExpenseDaycare: number;
+  childExpensePublicExtras: number;
+  childExpensePrivateSchool: number;
+  childExpenseActivities: number;
+  childExpensePremiumActivities: number;
+  childExpenseHealthcare: number;
+  childExpenseCollegeSavings: number;
+  childExpenseCollegeTuition: number;
+  childExpenseBabysitter: number;
+  childExpenseFoodClothing: number;
+  // ── Expense breakdown — pre-retirement (monthly) ──────────────────────
+  expenseHousing: number;
+  expenseFood: number;
+  expenseTransport: number;
+  expenseHealthcare: number;
+  expenseEntertainment: number;
+  expenseInsurance: number;
+  expenseUtilities: number;
+  expenseOther: number;
+  // ── Expense breakdown — in retirement (monthly) ────────────────────────
+  retExpenseHousing: number;
+  retExpenseFood: number;
+  retExpenseTransport: number;
+  retExpenseHealthcare: number;
+  retExpenseEntertainment: number;
+  retExpenseInsurance: number;
+  retExpenseUtilities: number;
+  retExpenseOther: number;
   // ── Savings breakdown (Cash / Investments / Other Assets) ──────────────
   savingsCash: number;
   savingsInvestments: number;

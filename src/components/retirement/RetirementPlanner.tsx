@@ -92,20 +92,20 @@ export function RetirementPlanner() {
   useEffect(() => { computeResults(); }, [computeResults]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#0f0720] via-[#1a0a3d] to-[#0c1a4d]">
       {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur border-b border-slate-700/50">
+      <header className="bg-gradient-to-r from-purple-950/90 via-indigo-950/90 to-blue-950/90 backdrop-blur border-b border-purple-500/20">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
               <TrendingUp size={18} className="text-white" />
             </div>
             <div>
-              <h1 className="text-white font-bold text-lg leading-none">FireSmart</h1>
-              <p className="text-slate-400 text-xs">Comprehensive Retirement Planning Tool</p>
+              <h1 className="font-bold text-lg leading-none bg-gradient-to-r from-purple-300 via-pink-200 to-indigo-300 bg-clip-text text-transparent">FireSmart</h1>
+              <p className="text-purple-300/60 text-xs">Comprehensive Retirement Planning Tool</p>
             </div>
           </div>
-          <div className="text-xs text-slate-400 hidden sm:block">
+          <div className="text-xs text-purple-300/50 hidden sm:block">
             For educational purposes only — not financial advice
           </div>
         </div>
@@ -115,10 +115,10 @@ export function RetirementPlanner() {
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
           {/* Left: Input Panel */}
           <aside className="lg:sticky lg:top-6">
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3">
-                <h2 className="text-white font-bold">Your Details</h2>
-                <p className="text-blue-200 text-xs">Adjust values to see real-time projections</p>
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl shadow-purple-900/40 overflow-hidden border border-purple-200/20">
+              <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-4 py-3">
+                <h2 className="text-white font-bold tracking-wide">Your Details</h2>
+                <p className="text-violet-200 text-xs">Adjust values to see real-time projections</p>
               </div>
               <div className="p-4 space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto">
                 {/* Import / Export */}
@@ -137,16 +137,16 @@ export function RetirementPlanner() {
             <MonteCarloToggle />
 
             {/* Tab panel */}
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div className="flex border-b border-slate-100 overflow-x-auto">
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl shadow-purple-900/40 overflow-hidden border border-purple-200/20">
+              <div className="flex border-b border-purple-100 overflow-x-auto bg-gradient-to-r from-violet-50/50 to-indigo-50/50">
                 {TABS.map(({ id, label, icon: Icon, tooltip }) => (
                   <div key={id} className="relative group">
                     <button
                       onClick={() => setActiveTab(id)}
-                      className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
+                      className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap transition-all border-b-2 ${
                         activeTab === id
-                          ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                          ? 'border-violet-500 text-violet-700 bg-violet-50'
+                          : 'border-transparent text-slate-500 hover:text-violet-600 hover:bg-violet-50/50'
                       }`}
                     >
                       <Icon size={13} />
@@ -213,7 +213,7 @@ export function RetirementPlanner() {
         </div>
       </main>
 
-      <footer className="text-center py-6 text-slate-500 text-xs">
+      <footer className="text-center py-6 text-purple-300/40 text-xs">
         FireSmart is for educational purposes only. Not financial advice. Consult a licensed financial advisor.
       </footer>
     </div>

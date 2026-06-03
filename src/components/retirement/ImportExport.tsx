@@ -68,15 +68,45 @@ const FIELDS: FieldDef[] = [
   { key: 'expectedReturnRate',   section: 'SHARED — RETURNS & INFLATION', label: 'expectedReturnRate', type: 'percent', description: 'Expected annual portfolio return (e.g. 7 for 7%)', example: '7' },
   { key: 'inflationRate',        section: 'SHARED — RETURNS & INFLATION', label: 'inflationRate',      type: 'percent', description: 'Annual inflation rate (e.g. 3 for 3%)',            example: '3' },
 
-  // ── SHARED — EXPENSES ────────────────────────────────────────────────
-  { key: 'annualExpenses',       section: 'SHARED — EXPENSES',          label: 'annualExpenses',       type: 'number',  description: 'Annual living expenses today — used for FIRE calculations (USD)' },
-  { key: 'retirementAnnualExpenses', section: 'SHARED — EXPENSES',      label: 'retirementAnnualExpenses', type: 'number', description: 'Planned yearly spending in retirement in today\'s dollars (USD)' },
+  // ── EXPENSES — PRE-RETIREMENT (monthly amounts) ───────────────────────
+  { key: 'expenseHousing',       section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseHousing',       type: 'number', description: 'Housing: rent or mortgage payment (USD/mo)' },
+  { key: 'expenseFood',          section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseFood',          type: 'number', description: 'Food & groceries (USD/mo)' },
+  { key: 'expenseTransport',     section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseTransport',     type: 'number', description: 'Transportation: car, fuel, transit (USD/mo)' },
+  { key: 'expenseHealthcare',    section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseHealthcare',    type: 'number', description: 'Healthcare & medical (USD/mo)' },
+  { key: 'expenseEntertainment', section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseEntertainment', type: 'number', description: 'Entertainment, dining out, hobbies (USD/mo)' },
+  { key: 'expenseInsurance',     section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseInsurance',     type: 'number', description: 'Insurance premiums (USD/mo)' },
+  { key: 'expenseUtilities',     section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseUtilities',     type: 'number', description: 'Utilities: electricity, gas, internet, phone (USD/mo)' },
+  { key: 'expenseOther',         section: 'EXPENSES — PRE-RETIREMENT',  label: 'expenseOther',         type: 'number', description: 'Other miscellaneous expenses (USD/mo)' },
+  { key: 'annualExpenses',       section: 'EXPENSES — PRE-RETIREMENT',  label: 'annualExpenses',       type: 'number', description: 'Total annual pre-retirement expenses (auto-sum of above × 12; used for FIRE) (USD/yr)' },
+
+  // ── EXPENSES — IN RETIREMENT (monthly amounts) ────────────────────────
+  { key: 'retExpenseHousing',       section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseHousing',       type: 'number', description: 'Housing in retirement (USD/mo)' },
+  { key: 'retExpenseFood',          section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseFood',          type: 'number', description: 'Food & groceries in retirement (USD/mo)' },
+  { key: 'retExpenseTransport',     section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseTransport',     type: 'number', description: 'Transportation in retirement (USD/mo)' },
+  { key: 'retExpenseHealthcare',    section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseHealthcare',    type: 'number', description: 'Healthcare in retirement — often higher (USD/mo)' },
+  { key: 'retExpenseEntertainment', section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseEntertainment', type: 'number', description: 'Entertainment & travel in retirement (USD/mo)' },
+  { key: 'retExpenseInsurance',     section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseInsurance',     type: 'number', description: 'Insurance in retirement (USD/mo)' },
+  { key: 'retExpenseUtilities',     section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseUtilities',     type: 'number', description: 'Utilities in retirement (USD/mo)' },
+  { key: 'retExpenseOther',         section: 'EXPENSES — IN RETIREMENT', label: 'retExpenseOther',         type: 'number', description: 'Other expenses in retirement (USD/mo)' },
+  { key: 'retirementAnnualExpenses', section: 'EXPENSES — IN RETIREMENT', label: 'retirementAnnualExpenses', type: 'number', description: 'Total annual retirement expenses (auto-sum of above × 12; drives withdrawals) (USD/yr)' },
 
   // ── FAMILY ────────────────────────────────────────────────────────────
-  { key: 'numChildren',          section: 'FAMILY (family mode only)',  label: 'numChildren',          type: 'number',  description: 'Number of dependent children' },
-  { key: 'childAnnualExpense',   section: 'FAMILY (family mode only)',  label: 'childAnnualExpense',   type: 'number',  description: 'Annual cost per child while dependent (USD)' },
-  { key: 'educationCostPerChild',section: 'FAMILY (family mode only)',  label: 'educationCostPerChild',type: 'number',  description: 'Total college fund per child (USD)' },
-  { key: 'childExpenseYears',    section: 'FAMILY (family mode only)',  label: 'childExpenseYears',    type: 'number',  description: 'Years child expenses apply per child' },
+  { key: 'numChildren',                  section: 'FAMILY (family mode only)',              label: 'numChildren',                  type: 'number', description: 'Number of dependent children (1–6)' },
+  { key: 'childExpenseYears',            section: 'FAMILY (family mode only)',              label: 'childExpenseYears',            type: 'number', description: 'Number of years child expenses apply per child (default 18)' },
+  { key: 'educationCostPerChild',        section: 'FAMILY (family mode only)',              label: 'educationCostPerChild',        type: 'number', description: 'Total college fund per child (USD)' },
+
+  // ── CHILD EXPENSE CATEGORIES (annual per child; 0 = not selected) ─────────
+  { key: 'childExpenseDaycare',          section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseDaycare',          type: 'number', description: 'Daycare / Preschool — ages 0–5 (default $18,000/yr; 0 = not applicable)' },
+  { key: 'childExpensePublicExtras',     section: 'CHILD EXPENSES (annual per child)',      label: 'childExpensePublicExtras',     type: 'number', description: 'Public School Extras — ages 5–18 (default $3,000/yr; 0 = not applicable)' },
+  { key: 'childExpensePrivateSchool',    section: 'CHILD EXPENSES (annual per child)',      label: 'childExpensePrivateSchool',    type: 'number', description: 'Private School K-12 — ages 5–18 (default $35,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseActivities',       section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseActivities',       type: 'number', description: 'Activities & Sports — ages 3–18 (default $5,000/yr; 0 = not applicable)' },
+  { key: 'childExpensePremiumActivities',section: 'CHILD EXPENSES (annual per child)',      label: 'childExpensePremiumActivities',type: 'number', description: 'Premium Activities (travel team, private lessons) — ages 5–18 (default $15,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseHealthcare',       section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseHealthcare',       type: 'number', description: 'Child Healthcare — ages 0–26 (default $3,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseCollegeSavings',   section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseCollegeSavings',   type: 'number', description: 'College Savings 529 — ages 0–18 (default $12,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseCollegeTuition',   section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseCollegeTuition',   type: 'number', description: 'College Tuition 4 years — ages 18–22 (default $45,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseBabysitter',       section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseBabysitter',       type: 'number', description: 'Babysitter / Nanny — ages 0–12 (default $8,000/yr; 0 = not applicable)' },
+  { key: 'childExpenseFoodClothing',     section: 'CHILD EXPENSES (annual per child)',      label: 'childExpenseFoodClothing',     type: 'number', description: 'Food & Clothing — ages 0–18 (default $4,000/yr; 0 = not applicable)' },
+  { key: 'childAnnualExpense',           section: 'CHILD EXPENSES (annual per child)',      label: 'childAnnualExpense',           type: 'number', description: 'Total per child/yr — auto-sum of selected categories above (USD/yr per child)' },
 
   // ── LOCATION ──────────────────────────────────────────────────────────
   { key: 'currentLocationId',    section: 'LOCATION',                   label: 'currentLocationId',    type: 'string',  description: 'Where you live now — e.g. us-national | fl | ny | ca | in-goa | pt | th' },
