@@ -67,6 +67,7 @@ export const DEFAULTS: RetirementInputs = {
   currentLocationId: DEFAULT_LOCATION_ID,
   retirementLocationId: DEFAULT_LOCATION_ID,
   properties: [],
+  mortgages: [],
   postRetirementMonthlyIncome: 0,
   monthly401k: 0,
   monthlyRothIRA: 0,

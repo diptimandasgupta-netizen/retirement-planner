@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { Home, ShoppingCart, Car, HeartPulse, Clapperboard, Shield, Zap, Package, ChevronDown, ChevronUp, Landmark, CheckCircle2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useRetirementStore } from '@/store/retirementStore';
+import type { RetirementMortgage } from '@/lib/retirement/types';
 
 type Period = 'monthly' | 'annually';
 
@@ -32,14 +33,8 @@ const sumMonthly = (s: ExpenseState) => Object.values(s).reduce((a, b) => a + b,
 
 // ── Mortgage ─────────────────────────────────────────────────────────────────
 
-interface Mortgage {
-  id: string;
-  label: string;
-  monthlyPayment: number;
-  remainingBalance: number;
-  interestRate: number;
-  yearsRemaining: number;
-}
+// Use the shared RetirementMortgage type (alias for readability)
+type Mortgage = RetirementMortgage;
 
 const newMortgage = (n: number): Mortgage => ({
   id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
@@ -331,7 +326,8 @@ export function ExpensesBreakdown() {
   const { inputs, setInputs } = useRetirementStore();
   const [period, setPeriod] = useState<Period>('monthly');
   const [activeTab, setActiveTab] = useState<'pre' | 'post'>('pre');
-  const [mortgages, setMortgagesRaw] = useState<Mortgage[]>([]);
+  // Initialise from store so CSV import populates mortgages correctly
+  const [mortgages, setMortgagesRaw] = useState<Mortgage[]>(() => inputs.mortgages ?? []);
 
   const inputsMap = inputs as unknown as Record<string, unknown>;
 
@@ -352,7 +348,7 @@ export function ExpensesBreakdown() {
   const updatePre  = (key: string, monthly: number) => { const n = { ...pre,  [key]: monthly }; setPre(n);  syncStore(n, post); };
   const updatePost = (key: string, monthly: number) => { const n = { ...post, [key]: monthly }; setPost(n); syncStore(pre, n);  };
 
-  // When mortgages change, recalculate housing rows
+  // When mortgages change, recalculate housing rows and sync to store
   const handleMortgagesChange = (list: Mortgage[]) => {
     setMortgagesRaw(list);
     const totalMonthlyPayment = list.reduce((s, m) => s + m.monthlyPayment, 0);
@@ -366,6 +362,8 @@ export function ExpensesBreakdown() {
 
     setPre(nextPre);
     setPost(nextPost);
+    // Persist mortgages to the store (enables CSV export + import roundtrip)
+    setInputs({ mortgages: list } as never);
     syncStore(nextPre, nextPost);
   };
 

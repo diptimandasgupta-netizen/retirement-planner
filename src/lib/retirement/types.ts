@@ -9,6 +9,15 @@ export interface RetirementProperty {
   sellAtRetirement: boolean;  // include proceeds in portfolio at retirement
 }
 
+export interface RetirementMortgage {
+  id: string;
+  label: string;
+  monthlyPayment: number;
+  remainingBalance: number;
+  interestRate: number;  // raw percentage, e.g. 6.5 (not decimal)
+  yearsRemaining: number;
+}
+
 export interface RetirementInputs {
   currentAge: number;
   retirementAge: number;
@@ -89,6 +98,7 @@ export interface RetirementInputs {
   currentLocationId: string;
   retirementLocationId: string;
   properties: RetirementProperty[];
+  mortgages: RetirementMortgage[];
   postRetirementMonthlyIncome: number;
   // Tax-advantaged & other investments (primary)
   monthly401k: number;              // pre-tax — reduces federal + state taxable income

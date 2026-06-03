@@ -4,7 +4,7 @@ import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from 
 import { CONTRIBUTION_LIMITS } from '@/lib/retirement/taxEstimate';
 import { useRetirementStore } from '@/store/retirementStore';
 import { DEFAULTS } from '@/lib/retirement/constants';
-import { RetirementInputs, RetirementProperty } from '@/lib/retirement/types';
+import { RetirementInputs, RetirementProperty, RetirementMortgage } from '@/lib/retirement/types';
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -186,6 +186,36 @@ function buildCsv(inputs: RetirementInputs, isTemplate: boolean): string {
   for (const f of FIELDS) {
     // Section header row
     if (f.section !== lastSection) {
+      // Inject MORTGAGES dynamic block between section 11 (Expenses In Retirement) and section 12 (Retirement Income)
+      if (f.section === '12. RETIREMENT INCOME' && lastSection === '11. EXPENSES — IN RETIREMENT') {
+        const mortgages: RetirementMortgage[] = isTemplate
+          ? [
+              { id: '1', label: 'Primary Residence',  monthlyPayment: 1800, remainingBalance: 280000, interestRate: 6.5, yearsRemaining: 22 },
+              { id: '2', label: 'Second Home / Rental', monthlyPayment: 1200, remainingBalance: 180000, interestRate: 7.0, yearsRemaining: 15 },
+            ]
+          : ((inputs.mortgages ?? []).length > 0
+              ? inputs.mortgages
+              : []);
+
+        lines.push('');
+        lines.push(row('--- MORTGAGES (one block per mortgage; increment the number; delete unused blocks) ---', '', ''));
+        lines.push(row('', '', 'Each mortgage block has 5 rows. interestRate is raw % (e.g. 6.5 for 6.5%).'));
+
+        if (mortgages.length === 0 && !isTemplate) {
+          lines.push(row('', '', 'No mortgages entered — add blocks below if needed'));
+        }
+
+        mortgages.forEach((m, i) => {
+          const n = i + 1;
+          lines.push('');
+          lines.push(row(`mortgage_${n}_label`,            m.label,                            `Mortgage ${n} name (e.g. "Primary Residence", "Rental Property")`));
+          lines.push(row(`mortgage_${n}_monthlyPayment`,   String(m.monthlyPayment),            'Monthly mortgage payment (USD/mo)'));
+          lines.push(row(`mortgage_${n}_remainingBalance`, String(m.remainingBalance),          'Outstanding loan balance (USD)'));
+          lines.push(row(`mortgage_${n}_interestRate`,     String(m.interestRate),              'Annual interest rate % (e.g. 6.5)'));
+          lines.push(row(`mortgage_${n}_yearsRemaining`,   String(m.yearsRemaining),            'Years remaining on the mortgage'));
+        });
+      }
+
       lines.push(''); // blank line
       lines.push(row(`--- ${f.section} ---`, '', ''));
       lastSection = f.section;
@@ -227,6 +257,7 @@ function parseCsv(text: string): { inputs: Partial<RetirementInputs>; warnings: 
   const warnings: string[] = [];
   const result: Record<string, unknown> = {};
   const props: Record<string, Partial<RetirementProperty>> = {};
+  const morts: Record<string, Partial<RetirementMortgage & { interestRate: number }>> = {};
 
   const lines = text.split('\n');
   for (const rawLine of lines) {
@@ -262,6 +293,19 @@ function parseCsv(text: string): { inputs: Partial<RetirementInputs>; warnings: 
       continue;
     }
 
+    // Mortgage rows
+    const mortMatch = field.match(/^mortgage_(\d+)_(.+)$/);
+    if (mortMatch) {
+      const [, num, prop] = mortMatch;
+      if (!morts[num]) morts[num] = {};
+      if (prop === 'label')              morts[num].label = value;
+      else if (prop === 'monthlyPayment')   morts[num].monthlyPayment = Number(value);
+      else if (prop === 'remainingBalance') morts[num].remainingBalance = Number(value);
+      else if (prop === 'interestRate')     morts[num].interestRate = Number(value);
+      else if (prop === 'yearsRemaining')   morts[num].yearsRemaining = Number(value);
+      continue;
+    }
+
     // Regular field
     const def = FIELDS.find(f => f.key === field);
     if (!def) { warnings.push(`Unknown field "${field}" — skipped.`); continue; }
@@ -280,6 +324,19 @@ function parseCsv(text: string): { inputs: Partial<RetirementInputs>; warnings: 
       sellAtRetirement: p.sellAtRetirement ?? false,
     }));
   result.properties = propertiesArray;
+
+  // Assemble mortgages array
+  const mortgagesArray: RetirementMortgage[] = Object.values(morts)
+    .filter(m => m.label || m.monthlyPayment)
+    .map((m, i) => ({
+      id: String(i + 1),
+      label: m.label ?? `Mortgage ${i + 1}`,
+      monthlyPayment: m.monthlyPayment ?? 0,
+      remainingBalance: m.remainingBalance ?? 0,
+      interestRate: m.interestRate ?? 0,
+      yearsRemaining: m.yearsRemaining ?? 0,
+    }));
+  result.mortgages = mortgagesArray;
 
   // Merge with defaults for missing fields
   const defaults = DEFAULTS as unknown as Record<string, unknown>;
