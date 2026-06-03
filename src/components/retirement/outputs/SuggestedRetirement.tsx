@@ -26,11 +26,12 @@ function YearsChip({ years }: { years: number }) {
   );
 }
 
-function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetAsPrimaryAge, lifeExpectancy, isCouple }: {
+function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetAsPrimaryAge, spouseActualRetirementAge, lifeExpectancy, isCouple }: {
   currentAge: number;
   suggestedAge: number | null;
-  primaryTargetAge: number;       // primary's own set retirement age (amber)
-  spouseTargetAsPrimaryAge?: number; // spouse's retirement mapped to primary's age (rose)
+  primaryTargetAge: number;            // primary's own retirement age — positions AND labels amber dot
+  spouseTargetAsPrimaryAge?: number;   // primary's age WHEN spouse retires — positions rose dot
+  spouseActualRetirementAge?: number;  // spouse's own retirement age — labels rose dot
   lifeExpectancy: number;
   isCouple?: boolean;
 }) {
@@ -49,7 +50,7 @@ function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetA
       {/* Track */}
       <div className="absolute top-3.5 left-0 right-0 h-1.5 bg-slate-200 rounded-full" />
 
-      {/* Working phase (up to suggested/joint retirement) */}
+      {/* Working phase */}
       <div className="absolute top-3.5 left-0 h-1.5 bg-blue-300 rounded-full transition-all"
         style={{ width: `${pct(retireLine)}%` }} />
 
@@ -63,11 +64,14 @@ function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetA
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">{currentAge}</span>
       </div>
 
-      {/* Spouse target dot (rose) — show before suggested so it doesn't cover primary */}
+      {/* Spouse target dot (rose) — positioned at primary's age when spouse retires,
+          but labelled with the spouse's OWN retirement age */}
       {isCouple && spouseTargetAsPrimaryAge !== undefined && spouseTargetAsPrimaryAge !== primaryTargetAge && (
         <div className="absolute top-2.5 transition-all" style={{ left: markerLeft(spouseTargetAsPrimaryAge) }}>
           <div className="w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-white shadow -translate-x-1/2" />
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold text-rose-600 whitespace-nowrap">{spouseTargetAsPrimaryAge}</span>
+          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold text-rose-600 whitespace-nowrap">
+            {spouseActualRetirementAge ?? spouseTargetAsPrimaryAge}
+          </span>
         </div>
       )}
 
@@ -79,7 +83,7 @@ function AgeTimeline({ currentAge, suggestedAge, primaryTargetAge, spouseTargetA
         </div>
       )}
 
-      {/* Suggested (FIRE-viable joint) retirement dot (green) */}
+      {/* Suggested (FIRE-viable) retirement dot (green) */}
       {suggestedAge !== null && (
         <div className="absolute top-2 transition-all" style={{ left: markerLeft(suggestedAge) }}>
           <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow -translate-x-1/2" />
@@ -142,7 +146,7 @@ export function SuggestedRetirement() {
             </p>
             {isCouple && (
               <p className="text-xs opacity-70 mt-1">
-                Your target: {inputs.retirementAge} · Spouse target: {spouseTargetAsPrimaryAge} (your age when spouse retires)
+                Your target: {inputs.retirementAge} · Spouse retires at: {inputs.spouseRetirementAge}
               </p>
             )}
           </>
@@ -172,6 +176,7 @@ export function SuggestedRetirement() {
             suggestedAge={regularScenario.suggestedAge}
             primaryTargetAge={inputs.retirementAge}
             spouseTargetAsPrimaryAge={spouseTargetAsPrimaryAge}
+            spouseActualRetirementAge={isCouple ? inputs.spouseRetirementAge : undefined}
             lifeExpectancy={inputs.lifeExpectancy}
             isCouple={isCouple}
           />
