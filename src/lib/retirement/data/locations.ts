@@ -531,6 +531,11 @@ export const LOCATIONS: RetirementLocation[] = [
     healthcareMultiplier: 0.48, notes: 'QRP visa for retirees; English-speaking; foreign income exempt; Caribbean coast',
   },
   {
+    id: 'usvi', name: 'US Virgin Islands', region: 'Caribbean', country: 'International',
+    colIndex: 118, stateTaxRate: 0.00, taxesSocialSecurity: false,
+    healthcareMultiplier: 0.82, notes: 'US territory; mirrors federal income tax but USVI residents pay tax to USVI (not IRS); Economic Development Commission offers 90% income tax reduction for qualifying businesses; St. Thomas, St. John, St. Croix; USD currency; no passport required for US citizens',
+  },
+  {
     id: 'cu', name: 'Cuba', region: 'Caribbean', country: 'International',
     colIndex: 35, stateTaxRate: 0.00, taxesSocialSecurity: false,
     healthcareMultiplier: 0.30, notes: 'Very low COL for foreigners; healthcare is strong; US travel restrictions apply',
@@ -541,6 +546,11 @@ export const LOCATIONS: RetirementLocation[] = [
     id: 'gb', name: 'United Kingdom', region: 'Europe', country: 'International',
     colIndex: 118, stateTaxRate: 0.20, taxesSocialSecurity: false,
     healthcareMultiplier: 0.72, notes: 'UK-US tax treaty prevents double taxation on most retirement income; 20% basic rate applies; NHS available to residents; London high COL; Edinburgh, Bath, Cornwall, Lake District very popular with retirees; English-speaking',
+  },
+  {
+    id: 'is', name: 'Iceland', region: 'Europe', country: 'International',
+    colIndex: 158, stateTaxRate: 0.22, taxesSocialSecurity: false,
+    healthcareMultiplier: 0.88, notes: 'Very high COL — one of the most expensive countries in Europe; 22% flat capital income tax; universal healthcare for residents; stunning natural scenery (Northern Lights, geysers, fjords); Reykjavik vibrant small capital; very safe and peaceful; strong English proficiency',
   },
   {
     id: 'fr', name: 'France', region: 'Europe', country: 'International',
