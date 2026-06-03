@@ -24,6 +24,7 @@ function runSingleSimulation(inputs: RetirementInputs): number[] {
     spouseAge, spouseRetirementAge, spouseCurrentSavings, spouseMonthlyContribution,
     expectedReturnRate, inflationRate, retirementAnnualExpenses,
     householdType, numChildren, survivorBenefitRate,
+    properties, postRetirementMonthlyIncome,
   } = inputs;
 
   const isCouple = householdType === 'spouse' || householdType === 'family';
@@ -48,6 +49,14 @@ function runSingleSimulation(inputs: RetirementInputs): number[] {
     const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
     const spouseContrib = (isCouple && !spouseRetired) ? spouseMonthlyContribution * 12 : 0;
 
+    // Property proceeds injected at retirement year
+    if (age === retirementAge && properties?.length) {
+      const yearsToRetirement = retirementAge - currentAge;
+      portfolio += properties
+        .filter(p => p.sellAtRetirement)
+        .reduce((sum, p) => sum + p.currentValue * (1 + p.appreciationRate) ** yearsToRetirement, 0);
+    }
+
     if (!primaryRetired) {
       portfolio = portfolio * (1 + yearReturn) + primaryContrib + spouseContrib;
     } else {
@@ -55,7 +64,8 @@ function runSingleSimulation(inputs: RetirementInputs): number[] {
       let baseExpenses = retirementAnnualExpenses * expMultiplier * locFactor;
       if (isCouple && !spouseRetired) baseExpenses *= 0.6;
       if (yearsRetired > 25 && isCouple) baseExpenses *= survivorBenefitRate;
-      const withdrawal = baseExpenses * (1 + yearInflation) ** yearsRetired;
+      const passiveIncome = (postRetirementMonthlyIncome ?? 0) * 12 * (1 + yearInflation) ** yearsRetired;
+      const withdrawal = Math.max(0, baseExpenses * (1 + yearInflation) ** yearsRetired - passiveIncome);
       portfolio = portfolio * (1 + yearReturn) + spouseContrib - withdrawal;
       if (portfolio < 0) portfolio = 0;
     }

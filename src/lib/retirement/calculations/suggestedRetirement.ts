@@ -1,6 +1,7 @@
 import { RetirementInputs } from '../types';
-import { HOUSEHOLD_EXPENSE_MULTIPLIER, FIRE_MULTIPLIERS } from '../constants';
+import { HOUSEHOLD_EXPENSE_MULTIPLIER } from '../constants';
 import { getLocation, relativeLocationFactor } from '../data/locations';
+import { computeFIRE, FIRE_TIER_EXPENSE_SCALE } from './fireCalculations';
 
 export interface RetirementScenario {
   tier: 'lean' | 'regular' | 'fat';
@@ -39,6 +40,7 @@ function simulatePortfolio(inputs: RetirementInputs, testRetirementAge: number):
     spouseAge, spouseRetirementAge, spouseCurrentSavings,
     householdType, numChildren, survivorBenefitRate,
     currentLocationId, retirementLocationId,
+    properties, postRetirementMonthlyIncome,
   } = inputs;
 
   const isCouple = householdType === 'spouse' || householdType === 'family';
@@ -58,6 +60,14 @@ function simulatePortfolio(inputs: RetirementInputs, testRetirementAge: number):
     const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
     const spouseContrib  = (isCouple && !spouseRetired) ? spouseMonthlyContribution * 12 : 0;
 
+    // Property proceeds at test retirement year
+    if (age === testRetirementAge && properties?.length) {
+      const yearsToRetirement = testRetirementAge - currentAge;
+      portfolio += properties
+        .filter(p => p.sellAtRetirement)
+        .reduce((sum, p) => sum + p.currentValue * (1 + p.appreciationRate) ** yearsToRetirement, 0);
+    }
+
     if (!primaryRetired) {
       portfolio = portfolio * (1 + r) + primaryContrib + spouseContrib;
     } else {
@@ -66,7 +76,8 @@ function simulatePortfolio(inputs: RetirementInputs, testRetirementAge: number):
       let baseExpenses = retirementAnnualExpenses * expMultiplier * locFactor;
       if (isCouple && !spouseRetired) baseExpenses *= 0.6;
       if (isCouple && age > Math.max(currentAge, spouseAge) + 55) baseExpenses *= survivorBenefitRate;
-      const withdrawal = baseExpenses * (1 + π) ** yearsRetired;
+      const passiveIncome = (postRetirementMonthlyIncome ?? 0) * 12 * (1 + π) ** yearsRetired;
+      const withdrawal = Math.max(0, baseExpenses * (1 + π) ** yearsRetired - passiveIncome);
       portfolio = portfolio * (1 + r) + spouseContrib - withdrawal;
       if (portfolio < 0 && depletionAge === null) depletionAge = age;
       portfolio = Math.max(0, portfolio);
@@ -86,17 +97,13 @@ function findEarliestRetirementAge(inputs: RetirementInputs, minAge: number): {
   portfolioAtAge: number;
   corpusNeeded: number;
 } {
-  const { currentAge, retirementAnnualExpenses, inflationRate, householdType, numChildren, currentLocationId, retirementLocationId } = inputs;
-  const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
-  const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
+  const { currentAge } = inputs;
 
   for (let testAge = minAge; testAge <= 80; testAge++) {
     const result = simulatePortfolio(inputs, testAge);
     if (result.survivesToEnd) {
-      const yearsToRetirement = testAge - currentAge;
-      const expAtRetirement = retirementAnnualExpenses * expMultiplier * locFactor * (1 + inflationRate) ** yearsToRetirement;
-      const corpusNeeded = expAtRetirement / 0.04;
-      return { age: testAge, portfolioAtAge: result.portfolioAtRetirement, corpusNeeded };
+      // corpusNeeded is filled in by the caller from FIRE tab numbers — return 0 here as placeholder
+      return { age: testAge, portfolioAtAge: result.portfolioAtRetirement, corpusNeeded: 0 };
     }
   }
   return { age: null, portfolioAtAge: 0, corpusNeeded: 0 };
@@ -130,31 +137,36 @@ function findExpenseReductionForAge(inputs: RetirementInputs, targetAge: number)
 }
 
 export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedRetirementResult {
-  const { currentAge, retirementAge, retirementAnnualExpenses, inflationRate, householdType, numChildren, monthlyContribution, spouseMonthlyContribution, currentLocationId, retirementLocationId } = inputs;
+  const { currentAge, retirementAge, monthlyContribution, spouseMonthlyContribution, currentLocationId, retirementLocationId } = inputs;
   const minSearchAge = Math.max(currentAge + 1, 35);
   const locFactor = relativeLocationFactor(getLocation(currentLocationId), getLocation(retirementLocationId));
 
+  // ── Use the EXACT same FIRE numbers as the FIRE tab ─────────────────────
+  const fire = computeFIRE(inputs);
+  const fireNumbers = {
+    lean:    fire.leanFIRENumber,
+    regular: fire.regularFIRENumber,
+    fat:     fire.fatFIRENumber,
+  };
+
   const tiers: Array<{ tier: 'lean' | 'regular' | 'fat'; label: string; swrRate: number; multiplier: number; expenseScale: number }> = [
-    { tier: 'lean',    label: 'Lean FIRE',    swrRate: 0.05, multiplier: FIRE_MULTIPLIERS.lean,    expenseScale: 0.80 },
-    { tier: 'regular', label: 'Regular FIRE', swrRate: 0.04, multiplier: FIRE_MULTIPLIERS.regular, expenseScale: 1.00 },
-    { tier: 'fat',     label: 'Fat FIRE',     swrRate: 0.03, multiplier: FIRE_MULTIPLIERS.fat,     expenseScale: 1.25 },
+    { tier: 'lean',    label: 'Lean FIRE',    swrRate: 0.05, multiplier: 20, expenseScale: FIRE_TIER_EXPENSE_SCALE.lean    },
+    { tier: 'regular', label: 'Regular FIRE', swrRate: 0.04, multiplier: 25, expenseScale: FIRE_TIER_EXPENSE_SCALE.regular },
+    { tier: 'fat',     label: 'Fat FIRE',     swrRate: 0.03, multiplier: 33, expenseScale: FIRE_TIER_EXPENSE_SCALE.fat     },
   ];
 
-  const expMultiplier = HOUSEHOLD_EXPENSE_MULTIPLIER[householdType]?.(numChildren) ?? 1;
-
   const scenarios: RetirementScenario[] = tiers.map(({ tier, label, swrRate, multiplier, expenseScale }) => {
+    // Scale retirement expenses to match this tier (same as fireCalculations)
     const scaledInputs: RetirementInputs = {
       ...inputs,
-      retirementAnnualExpenses: retirementAnnualExpenses * expenseScale,
+      retirementAnnualExpenses: inputs.retirementAnnualExpenses * expenseScale,
     };
 
     const found = findEarliestRetirementAge(scaledInputs, minSearchAge);
     const alreadyPossible = found.age !== null && found.age <= currentAge;
 
-    // Corpus needed at user's target retirement age — apply locFactor here too
-    const yearsToTarget = retirementAge - currentAge;
-    const expAtTarget = retirementAnnualExpenses * expenseScale * expMultiplier * locFactor * (1 + inflationRate) ** yearsToTarget;
-    const corpusAtTarget = expAtTarget / swrRate;
+    // Corpus needed = the FIRE number for this tier (same value shown in FIRE tab)
+    const corpusNeeded = fireNumbers[tier];
 
     return {
       tier,
@@ -163,7 +175,7 @@ export function computeSuggestedRetirement(inputs: RetirementInputs): SuggestedR
       multiplier,
       suggestedAge: found.age,
       portfolioAtSuggestedAge: found.portfolioAtAge,
-      corpusNeededAtSuggestedAge: found.corpusNeeded,
+      corpusNeededAtSuggestedAge: corpusNeeded,   // ← now matches FIRE tab exactly
       yearsVsTarget: found.age !== null ? found.age - retirementAge : 0,
       alreadyPossible,
     };

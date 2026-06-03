@@ -1,6 +1,14 @@
 export type HouseholdType = 'single' | 'spouse' | 'family';
 export type FIREType = 'lean' | 'regular' | 'fat';
 
+export interface RetirementProperty {
+  id: string;
+  label: string;
+  currentValue: number;
+  appreciationRate: number;   // annual decimal, default 0.0156
+  sellAtRetirement: boolean;  // include proceeds in portfolio at retirement
+}
+
 export interface RetirementInputs {
   currentAge: number;
   retirementAge: number;
@@ -23,8 +31,44 @@ export interface RetirementInputs {
   childAnnualExpense: number;
   educationCostPerChild: number;
   childExpenseYears: number;        // how many years per child expenses run
-  currentLocationId: string;        // where you live now (COL baseline)
-  retirementLocationId: string;     // where you plan to retire
+  alreadyRetired: boolean;
+  spouseAlreadyRetired: boolean;
+  // ── Savings breakdown (Cash / Investments / Other Assets) ──────────────
+  savingsCash: number;
+  savingsInvestments: number;
+  savingsOtherAssets: number;
+  spouseSavingsCash: number;
+  spouseSavingsInvestments: number;
+  spouseSavingsOtherAssets: number;
+  // ── Income breakdown (monthly amounts) ────────────────────────────────
+  incomeSalary: number;
+  incomeBonus: number;
+  incomeRental: number;
+  incomeSideIncome: number;
+  incomeDividends: number;
+  incomePension: number;
+  incomeSocialSec: number;
+  incomeOther: number;
+  spouseIncomeSalary: number;
+  spouseIncomeBonus: number;
+  spouseIncomeRental: number;
+  spouseIncomeSideIncome: number;
+  spouseIncomeDividends: number;
+  spouseIncomePension: number;
+  spouseIncomeSocialSec: number;
+  spouseIncomeOther: number;
+  currentLocationId: string;
+  retirementLocationId: string;
+  properties: RetirementProperty[];
+  postRetirementMonthlyIncome: number;
+  // Tax-advantaged & other investments (primary)
+  monthly401k: number;              // pre-tax — reduces federal + state taxable income
+  monthlyRothIRA: number;           // post-tax — deducted from net take-home
+  monthlyOtherInvestment: number;   // post-tax — any additional (brokerage, HSA, etc.)
+  // Spouse
+  spouseMonthly401k: number;
+  spouseMonthlyRothIRA: number;
+  spouseMonthlyOtherInvestment: number;
 }
 
 export interface YearlyDataPoint {

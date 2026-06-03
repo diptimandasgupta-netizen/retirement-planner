@@ -12,6 +12,7 @@ import { GapAnalysis } from './outputs/GapAnalysis';
 import { WithdrawalAnalysis } from './outputs/WithdrawalAnalysis';
 import { MonteCarloToggle } from './controls/MonteCarloToggle';
 import { SuggestedRetirement } from './outputs/SuggestedRetirement';
+import { ImportExport } from './ImportExport';
 
 type Tab = 'suggest' | 'chart' | 'monte' | 'fire' | 'gap' | 'swr';
 
@@ -120,6 +121,11 @@ export function RetirementPlanner() {
                 <p className="text-blue-200 text-xs">Adjust values to see real-time projections</p>
               </div>
               <div className="p-4 space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto">
+                {/* Import / Export */}
+                <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Profile</p>
+                  <ImportExport />
+                </div>
                 <InputPanel />
               </div>
             </div>

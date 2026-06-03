@@ -25,6 +25,7 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
     spouseAge, spouseRetirementAge, spouseCurrentSavings, spouseMonthlyContribution,
     expectedReturnRate: r, inflationRate: π,
     retirementAnnualExpenses, householdType, numChildren, survivorBenefitRate,
+    properties, postRetirementMonthlyIncome,
   } = inputs;
 
   const isCouple = householdType === 'spouse' || householdType === 'family';
@@ -55,6 +56,7 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
     const spouseRetired = !isCouple || spouseCurrentAge >= spouseRetirementAge;
 
     // ── Contributions ─────────────────────────────────────────────────────
+    // monthlyContribution = 401k + Roth IRA + other investments — ALL stop at retirement
     const primaryContrib = primaryRetired ? 0 : monthlyContribution * 12;
     let spouseContrib = 0;
     if (isCouple && !spouseRetired) {
@@ -73,7 +75,16 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
 
     const totalContrib = Math.max(0, primaryContrib + spouseContrib - childDeduction) - edLump;
 
-    // ── Withdrawal ────────────────────────────────────────────────────────
+    // ── Property proceeds at retirement ──────────────────────────────────
+    let propertyProceeds = 0;
+    if (age === retirementAge && properties?.length) {
+      const yearsToRetirement = retirementAge - currentAge;
+      propertyProceeds = properties
+        .filter(p => p.sellAtRetirement)
+        .reduce((sum, p) => sum + p.currentValue * (1 + p.appreciationRate) ** yearsToRetirement, 0);
+    }
+
+    // ── Withdrawal (net of passive retirement income) ─────────────────────
     let withdrawal = 0;
     if (primaryRetired) {
       const yearsRetired = age - retirementAge;
@@ -86,14 +97,16 @@ export function computeYearlyData(inputs: RetirementInputs): YearlyDataPoint[] {
 
       // While spouse is still working, they cover their share — net withdrawal is lower
       if (isCouple && !spouseRetired) {
-        baseExpenses *= 0.6; // primary bears ~60% of household expenses while spouse works
+        baseExpenses *= 0.6;
       }
 
-      withdrawal = baseExpenses * (1 + π) ** yearsRetired;
+      // Gross expenses minus inflation-adjusted passive income (rental, pension, SS, dividends)
+      const passiveIncome = (postRetirementMonthlyIncome ?? 0) * 12 * (1 + π) ** yearsRetired;
+      withdrawal = Math.max(0, baseExpenses * (1 + π) ** yearsRetired - passiveIncome);
     }
 
     // ── Grow combined portfolio ───────────────────────────────────────────
-    const combined = portfolioPrimary + portfolioSpouse;
+    const combined = portfolioPrimary + portfolioSpouse + propertyProceeds;
     const newCombined = combined * (1 + r) + totalContrib - withdrawal;
 
     const isDepletionYear = newCombined < 0 && !depleted;

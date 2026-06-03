@@ -42,7 +42,7 @@ interface Mortgage {
 }
 
 const newMortgage = (n: number): Mortgage => ({
-  id: crypto.randomUUID(),
+  id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
   label: n === 1 ? 'Primary Residence' : n === 2 ? 'Second Home' : `Property ${n}`,
   monthlyPayment: 1800,
   remainingBalance: 280000,

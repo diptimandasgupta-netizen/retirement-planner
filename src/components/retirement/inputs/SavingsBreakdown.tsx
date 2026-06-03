@@ -126,25 +126,32 @@ export function SavingsBreakdown() {
   const { inputs, setInputs } = useRetirementStore();
   const isCouple = inputs.householdType === 'spouse' || inputs.householdType === 'family';
 
-  const [primary, setPrimaryRaw] = useState<SavingsState>(() => defaultState(inputs.currentSavings));
-  const [spouse, setSpouseRaw] = useState<SavingsState>(() => defaultState(inputs.spouseCurrentSavings));
+  // Initialise from persisted breakdown if available, otherwise split total proportionally
+  const [primary, setPrimaryRaw] = useState<SavingsState>(() =>
+    inputs.savingsCash || inputs.savingsInvestments || inputs.savingsOtherAssets
+      ? { cash: inputs.savingsCash, investments: inputs.savingsInvestments, otherAssets: inputs.savingsOtherAssets }
+      : defaultState(inputs.currentSavings)
+  );
+  const [spouse, setSpouseRaw] = useState<SavingsState>(() =>
+    inputs.spouseSavingsCash || inputs.spouseSavingsInvestments || inputs.spouseSavingsOtherAssets
+      ? { cash: inputs.spouseSavingsCash, investments: inputs.spouseSavingsInvestments, otherAssets: inputs.spouseSavingsOtherAssets }
+      : defaultState(inputs.spouseCurrentSavings)
+  );
 
   const setPrimary = (s: SavingsState) => {
     setPrimaryRaw(s);
-    setInputs({ currentSavings: total(s) });
+    setInputs({
+      currentSavings: total(s),
+      savingsCash: s.cash, savingsInvestments: s.investments, savingsOtherAssets: s.otherAssets,
+    });
   };
   const setSpouse = (s: SavingsState) => {
     setSpouseRaw(s);
-    setInputs({ spouseCurrentSavings: total(s) });
+    setInputs({
+      spouseCurrentSavings: total(s),
+      spouseSavingsCash: s.cash, spouseSavingsInvestments: s.investments, spouseSavingsOtherAssets: s.otherAssets,
+    });
   };
-
-  // Keep totals in sync if user edits from another panel
-  useEffect(() => {
-    if (total(primary) !== inputs.currentSavings) {
-      setPrimaryRaw(defaultState(inputs.currentSavings));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="space-y-4">

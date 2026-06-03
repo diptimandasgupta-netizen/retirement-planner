@@ -1,10 +1,12 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, User, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Users, CheckCircle2 } from 'lucide-react';
+import { useRef } from 'react';
 import { SavingsBreakdown } from './SavingsBreakdown';
 import { ExpensesBreakdown } from './ExpensesBreakdown';
 import { IncomeBreakdown } from './IncomeBreakdown';
 import { LocationSelector } from './LocationSelector';
+import { PropertiesBreakdown } from './PropertiesBreakdown';
 import { useRetirementStore } from '@/store/retirementStore';
 import { HouseholdType } from '@/lib/retirement/types';
 
@@ -108,10 +110,31 @@ function PersonCard({
 
 export function InputPanel() {
   const { inputs, setInputs } = useRetirementStore();
+  // Remember chosen retirement ages before toggling "Already Retired"
+  const savedRetirementAge       = useRef(inputs.retirementAge);
+  const savedSpouseRetirementAge = useRef(inputs.spouseRetirementAge);
 
   const set = (key: keyof typeof inputs) => (v: number) => setInputs({ [key]: v });
   const isCouple = inputs.householdType === 'spouse' || inputs.householdType === 'family';
   const isFamily = inputs.householdType === 'family';
+
+  function toggleAlreadyRetired() {
+    if (!inputs.alreadyRetired) {
+      savedRetirementAge.current = inputs.retirementAge;
+      setInputs({ alreadyRetired: true, retirementAge: inputs.currentAge });
+    } else {
+      setInputs({ alreadyRetired: false, retirementAge: savedRetirementAge.current });
+    }
+  }
+
+  function toggleSpouseAlreadyRetired() {
+    if (!inputs.spouseAlreadyRetired) {
+      savedSpouseRetirementAge.current = inputs.spouseRetirementAge;
+      setInputs({ spouseAlreadyRetired: true, spouseRetirementAge: inputs.spouseAge });
+    } else {
+      setInputs({ spouseAlreadyRetired: false, spouseRetirementAge: savedSpouseRetirementAge.current });
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -137,21 +160,101 @@ export function InputPanel() {
 
       {/* Basic info — side-by-side for couple modes */}
       <Section title={isCouple ? 'Ages & Retirement' : 'Basic Information'}>
+
+        {/* Already Retired toggle */}
+        <button
+          onClick={toggleAlreadyRetired}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all ${
+            inputs.alreadyRetired
+              ? 'border-green-500 bg-green-50'
+              : 'border-slate-200 bg-white hover:border-blue-300'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-left">
+            <CheckCircle2
+              size={16}
+              className={inputs.alreadyRetired ? 'text-green-600' : 'text-slate-300'}
+            />
+            <div>
+              <p className={`text-xs font-bold ${inputs.alreadyRetired ? 'text-green-700' : 'text-slate-600'}`}>
+                Already Retired
+              </p>
+              <p className={`text-xs ${inputs.alreadyRetired ? 'text-green-600' : 'text-slate-400'}`}>
+                {inputs.alreadyRetired
+                  ? `Calculations start in withdrawal mode from age ${inputs.currentAge}`
+                  : 'Toggle on if you are already retired'}
+              </p>
+            </div>
+          </div>
+          <div className={`relative w-10 h-5 rounded-full transition-colors ${inputs.alreadyRetired ? 'bg-green-500' : 'bg-slate-300'}`}>
+            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${inputs.alreadyRetired ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </div>
+        </button>
+
         {isCouple ? (
           <div className="grid grid-cols-2 gap-3">
             <PersonCard label="You" color="blue" icon={User}>
-              <SliderField label="Your Age" value={inputs.currentAge} min={18} max={75} onChange={set('currentAge')} unit=" yrs" />
-              <SliderField label="Retire At" value={inputs.retirementAge} min={Math.max(inputs.currentAge + 1, 40)} max={80} onChange={set('retirementAge')} unit=" yrs" />
+              <SliderField label="Your Age" value={inputs.currentAge} min={18} max={75} onChange={v => {
+                const updates: Partial<typeof inputs> = { currentAge: v };
+                if (inputs.alreadyRetired) updates.retirementAge = v;
+                setInputs(updates);
+              }} unit=" yrs" />
+              {!inputs.alreadyRetired && (
+                <SliderField label="Retire At" value={inputs.retirementAge} min={Math.max(inputs.currentAge + 1, 40)} max={80} onChange={set('retirementAge')} unit=" yrs" />
+              )}
+              {/* Already Retired toggle — You */}
+              <button
+                onClick={toggleAlreadyRetired}
+                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-xs ${
+                  inputs.alreadyRetired ? 'border-green-400 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={12} className={inputs.alreadyRetired ? 'text-green-600' : 'text-slate-300'} />
+                  {inputs.alreadyRetired ? `Retired (age ${inputs.currentAge})` : 'Already retired?'}
+                </span>
+                <div className={`relative w-8 h-4 rounded-full transition-colors ${inputs.alreadyRetired ? 'bg-green-500' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${inputs.alreadyRetired ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
             </PersonCard>
+
             <PersonCard label="Spouse" color="rose" icon={Users}>
-              <SliderField label="Age" value={inputs.spouseAge} min={18} max={75} onChange={set('spouseAge')} unit=" yrs" />
-              <SliderField label="Retire At" value={inputs.spouseRetirementAge} min={Math.max(inputs.spouseAge + 1, 40)} max={80} onChange={set('spouseRetirementAge')} unit=" yrs" />
+              <SliderField label="Age" value={inputs.spouseAge} min={18} max={75} onChange={v => {
+                const updates: Partial<typeof inputs> = { spouseAge: v };
+                if (inputs.spouseAlreadyRetired) updates.spouseRetirementAge = v;
+                setInputs(updates);
+              }} unit=" yrs" />
+              {!inputs.spouseAlreadyRetired && (
+                <SliderField label="Retire At" value={inputs.spouseRetirementAge} min={Math.max(inputs.spouseAge + 1, 40)} max={80} onChange={set('spouseRetirementAge')} unit=" yrs" />
+              )}
+              {/* Already Retired toggle — Spouse */}
+              <button
+                onClick={toggleSpouseAlreadyRetired}
+                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-xs ${
+                  inputs.spouseAlreadyRetired ? 'border-green-400 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-500 hover:border-rose-300'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={12} className={inputs.spouseAlreadyRetired ? 'text-green-600' : 'text-slate-300'} />
+                  {inputs.spouseAlreadyRetired ? `Retired (age ${inputs.spouseAge})` : 'Already retired?'}
+                </span>
+                <div className={`relative w-8 h-4 rounded-full transition-colors ${inputs.spouseAlreadyRetired ? 'bg-green-500' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${inputs.spouseAlreadyRetired ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
             </PersonCard>
           </div>
         ) : (
           <>
-            <SliderField label="Current Age" value={inputs.currentAge} min={18} max={75} onChange={set('currentAge')} unit=" yrs" />
-            <SliderField label="Retirement Age" value={inputs.retirementAge} min={Math.max(inputs.currentAge + 1, 40)} max={80} onChange={set('retirementAge')} unit=" yrs" />
+            <SliderField label="Current Age" value={inputs.currentAge} min={18} max={75} onChange={v => {
+              const updates: Partial<typeof inputs> = { currentAge: v };
+              if (inputs.alreadyRetired) updates.retirementAge = v;
+              setInputs(updates);
+            }} unit=" yrs" />
+            {!inputs.alreadyRetired && (
+              <SliderField label="Retirement Age" value={inputs.retirementAge} min={Math.max(inputs.currentAge + 1, 40)} max={80} onChange={set('retirementAge')} unit=" yrs" />
+            )}
           </>
         )}
         <SliderField label="Life Expectancy" value={inputs.lifeExpectancy} min={70} max={100} onChange={set('lifeExpectancy')} unit=" yrs" />
@@ -166,6 +269,11 @@ export function InputPanel() {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Income & Monthly Investment</p>
           <IncomeBreakdown />
         </div>
+      </Section>
+
+      {/* Properties */}
+      <Section title="Properties & Real Estate" defaultOpen={false}>
+        <PropertiesBreakdown />
       </Section>
 
       {/* Expenses breakdown — by category with monthly/annual toggle */}
